@@ -18,23 +18,23 @@ class LayoutModeTest {
     }
 
     @Test
-    fun layoutMode_expanded_showsTwoPanesWhenTopicSelected() {
+    fun layoutMode_expanded_alwaysShowsTwoPanes() {
         val info = WindowLayoutInfo(
             mode = LayoutMode.EXPANDED,
             widthDp = androidx.compose.ui.unit.Dp(900f),
         )
-        assertFalse(info.shouldShowTwoPanes(null))
+        assertTrue(info.shouldShowTwoPanes(null))
         assertTrue(info.shouldShowTwoPanes("topic-1"))
     }
 
     @Test
-    fun layoutMode_foldable_showsTwoPanesWhenTopicSelected() {
+    fun layoutMode_foldable_alwaysShowsTwoPanes() {
         val info = WindowLayoutInfo(
             mode = LayoutMode.FOLDABLE,
             widthDp = androidx.compose.ui.unit.Dp(900f),
             hingeBounds = listOf(HingeBounds(400, 0, 420, 2000)),
         )
-        assertFalse(info.shouldShowTwoPanes(null))
+        assertTrue(info.shouldShowTwoPanes(null))
         assertTrue(info.shouldShowTwoPanes("topic-1"))
     }
 

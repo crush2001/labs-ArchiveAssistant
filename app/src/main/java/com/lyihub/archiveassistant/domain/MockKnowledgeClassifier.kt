@@ -30,7 +30,7 @@ class MockKnowledgeClassifier(
             imageTerms.any { it in lowerInput } -> ContentType.IMAGE_SCREENSHOT
             documentTerms.any { it in lowerInput } -> ContentType.DOCUMENT_PDF
             urlTerms.any { it in lowerInput } || urlRegex.containsMatchIn(input) -> ContentType.WEB_ARTICLE
-            else -> ContentType.PLAIN_TEXT
+            else -> ContentType.WEB_ARTICLE
         }
     }
 
@@ -62,10 +62,9 @@ class MockKnowledgeClassifier(
 
     private fun tagFor(contentType: ContentType): String = when (contentType) {
         ContentType.ALL -> "全部"
-        ContentType.WEB_ARTICLE -> "网页文章"
-        ContentType.IMAGE_SCREENSHOT -> "图像截屏"
-        ContentType.DOCUMENT_PDF -> "文档/PDF"
-        ContentType.PLAIN_TEXT -> "快速提取片段"
+        ContentType.WEB_ARTICLE -> "网页"
+        ContentType.IMAGE_SCREENSHOT -> "图像"
+        ContentType.DOCUMENT_PDF -> "文档"
     }
 
     private companion object {

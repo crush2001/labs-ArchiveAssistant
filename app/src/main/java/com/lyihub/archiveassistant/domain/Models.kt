@@ -17,15 +17,15 @@ data class KnowledgeItem(
     val summary: String,
     val fullText: String,
     val sourceUrl: String?,
+    val imageResName: String? = null,
     val createdAtEpochMillis: Long,
 )
 
 enum class ContentType(val label: String) {
     ALL("全部"),
-    WEB_ARTICLE("网页文章"),
-    IMAGE_SCREENSHOT("图像截屏"),
-    DOCUMENT_PDF("文档/PDF"),
-    PLAIN_TEXT("文本片段"),
+    WEB_ARTICLE("网页"),
+    IMAGE_SCREENSHOT("图像"),
+    DOCUMENT_PDF("文档"),
 }
 
 enum class AiEngineType {

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.ui.components.ActionButton
+import com.lyihub.archiveassistant.ui.components.TextActionButton
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.PaneContentPadding
 import com.lyihub.archiveassistant.ui.components.PaneDivider
@@ -71,37 +72,44 @@ fun HomePane(
         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
             item {
                 PaneContentPadding {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ParserSection(
-                            input = parserInput,
-                            validationMessage = parserValidationMessage,
-                            onInputChanged = onParserInputChanged,
-                            onSubmit = onSubmitParserInput,
-                        )
-                        ActionButton(
-                            label = "新建主题",
-                            onClick = onCreateTopic,
-                            testTag = "home-create-topic-button",
-                            icon = Icons.Default.Add,
-                        )
-                        ActionButton(
-                            label = "管理主题",
-                            onClick = onOpenManage,
-                            testTag = "manage-button",
-                            icon = Icons.AutoMirrored.Filled.List,
-                        )
-                    }
+                    ParserSection(
+                        input = parserInput,
+                        validationMessage = parserValidationMessage,
+                        onInputChanged = onParserInputChanged,
+                        onSubmit = onSubmitParserInput,
+                    )
                 }
             }
             item {
                 Column(modifier = Modifier.testTag("recent-topic-list")) {
                     PaneDivider()
-                    Text(
-                        text = "最近主题",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "最近主题",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextActionButton(
+                                label = "新建",
+                                onClick = onCreateTopic,
+                                testTag = "home-create-topic-button",
+                                icon = Icons.Default.Add,
+                            )
+                            TextActionButton(
+                                label = "管理",
+                                onClick = onOpenManage,
+                                testTag = "manage-button",
+                                icon = Icons.AutoMirrored.Filled.List,
+                            )
+                        }
+                    }
                     recentTopics.forEach { topic ->
                         TopicCard(
                             topic = topic,

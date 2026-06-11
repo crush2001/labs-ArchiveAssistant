@@ -92,7 +92,7 @@ class ArchiveAssistantStateStoreTest {
 
         val newItem = store.state.items.last()
         assertEquals(initialItemCount + 1, store.state.items.size)
-        assertEquals("item-classified-5", newItem.id)
+        assertEquals("item-classified-6", newItem.id)
         assertEquals("topic-ui-inspiration", newItem.topicId)
         assertEquals(ContentType.IMAGE_SCREENSHOT, newItem.contentType)
         assertEquals("", store.state.parserInput)
@@ -117,11 +117,11 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
-    fun recentTopics_returnsTopThreeByUpdatedAtDescending() {
+    fun recentTopics_returnsTopFiveByUpdatedAtDescending() {
         val store = ArchiveAssistantStateStore()
 
         val recent = store.state.recentTopics
-        assertEquals(3, recent.size)
+        assertEquals(5, recent.size)
         assertTrue(recent.zipWithNext { a, b -> a.updatedAtEpochMillis >= b.updatedAtEpochMillis }.all { it })
     }
 
@@ -145,10 +145,10 @@ class ArchiveAssistantStateStoreTest {
         val store = ArchiveAssistantStateStore()
 
         store.createTopic("新主题")
-        assertEquals("topic-user-5", store.state.selectedTopicId)
+        assertEquals("topic-user-6", store.state.selectedTopicId)
         assertEquals("新主题", store.state.selectedTopic?.title)
 
-        store.renameTopic("topic-user-5", "重命名主题")
+        store.renameTopic("topic-user-6", "重命名主题")
         assertEquals("重命名主题", store.state.selectedTopic?.title)
 
         store.createTopic("重命名主题")

@@ -125,7 +125,7 @@ class ArchiveAssistantStateStore(
             is ClassificationResult.Classified -> {
                 val payload = result.payload
                 val itemIndex = nextItemIndex++
-                val now = GeneratedItemEpochMillis + itemIndex
+                val now = System.currentTimeMillis()
                 val item = KnowledgeItem(
                     id = "item-classified-$itemIndex",
                     topicId = payload.topicId,
@@ -166,7 +166,7 @@ class ArchiveAssistantStateStore(
             title = normalizedTitle,
             iconName = "folder-spark",
             iconColor = "#5e5d59",
-            updatedAtEpochMillis = GeneratedTopicEpochMillis + topicIndex,
+            updatedAtEpochMillis = System.currentTimeMillis(),
         )
         state = state.copy(
             topics = state.topics + topic,
@@ -184,7 +184,7 @@ class ArchiveAssistantStateStore(
             return
         }
 
-        val renameEpoch = GeneratedTopicEpochMillis + nextTopicIndex++
+        val renameEpoch = System.currentTimeMillis()
 
         state = state.copy(
             topics = state.topics.map { topic ->
@@ -238,10 +238,5 @@ class ArchiveAssistantStateStore(
         return lineSequence()
             .flatMap { it.splitToSequence(' ', '\t', '\n') }
             .firstOrNull { it.startsWith("http://") || it.startsWith("https://") || it.startsWith("www.") }
-    }
-
-    private companion object {
-        const val GeneratedTopicEpochMillis = 1_716_100_000_000
-        const val GeneratedItemEpochMillis = 1_716_000_000_000
     }
 }

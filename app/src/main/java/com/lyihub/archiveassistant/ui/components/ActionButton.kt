@@ -45,11 +45,20 @@ fun TextActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     testTag: String? = null,
+    icon: ImageVector? = null,
 ) {
     androidx.compose.material3.TextButton(
         onClick = onClick,
         modifier = if (testTag != null) modifier.testTag(testTag) else modifier,
     ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,

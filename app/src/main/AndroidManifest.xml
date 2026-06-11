@@ -16,6 +16,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:resizeableActivity="true"
+            android:configChanges="screenSize|smallestScreenSize|orientation|screenLayout"
             android:theme="@style/Theme.ArchiveAssistant">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -73,7 +73,7 @@ fun List<HingeBounds>.isSafeVerticalArea(x: Int, width: Int): Boolean {
 fun WindowLayoutInfo.shouldShowTwoPanes(selectedTopicId: String?): Boolean {
     return when (mode) {
         LayoutMode.COMPACT -> false
-        LayoutMode.EXPANDED -> selectedTopicId != null
-        LayoutMode.FOLDABLE -> selectedTopicId != null
+        LayoutMode.EXPANDED -> true
+        LayoutMode.FOLDABLE -> true
     }
 }

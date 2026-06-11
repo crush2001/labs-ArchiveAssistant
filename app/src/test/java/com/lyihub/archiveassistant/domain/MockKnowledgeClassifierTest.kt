@@ -13,7 +13,7 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
-        assertEquals("网页文章", payload.tag)
+        assertEquals("网页", payload.tag)
         assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
     }
 
@@ -23,7 +23,7 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.IMAGE_SCREENSHOT, payload.contentType)
-        assertEquals("图像截屏", payload.tag)
+        assertEquals("图像", payload.tag)
         assertEquals("topic-ui-inspiration", payload.topicId)
     }
 
@@ -33,17 +33,17 @@ class MockKnowledgeClassifierTest {
 
         val payload = result.assertClassified()
         assertEquals(ContentType.DOCUMENT_PDF, payload.contentType)
-        assertEquals("文档/PDF", payload.tag)
+        assertEquals("文档", payload.tag)
         assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
     }
 
     @Test
-    fun classify_plainText_returnsFallbackTextResult() {
+    fun classify_plainText_returnsWebArticleFallback() {
         val result = classifier.classify("田野笔记里关于仪式交换的一段摘录")
 
         val payload = result.assertClassified()
-        assertEquals(ContentType.PLAIN_TEXT, payload.contentType)
-        assertEquals("快速提取片段", payload.tag)
+        assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
+        assertEquals("网页", payload.tag)
         assertEquals("topic-anthropology-clips", payload.topicId)
     }
 
@@ -58,7 +58,7 @@ class MockKnowledgeClassifierTest {
     @Test
     fun sampleData_containsPrototypeLabelsAndDeterministicFixtures() {
         assertEquals(
-            listOf("全部", "网页文章", "图像截屏", "文档/PDF", "文本片段"),
+            listOf("全部", "网页", "图像", "文档"),
             ContentType.entries.map { it.label },
         )
         assertEquals(
@@ -68,7 +68,6 @@ class MockKnowledgeClassifierTest {
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.WEB_ARTICLE })
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.IMAGE_SCREENSHOT })
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT_PDF })
-        assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.PLAIN_TEXT })
         assertTrue(SampleKnowledgeData.topics.all { it.id.isNotBlank() && it.updatedAtEpochMillis > 0L })
         assertTrue(SampleKnowledgeData.items.all { it.id.isNotBlank() && it.createdAtEpochMillis > 0L })
     }

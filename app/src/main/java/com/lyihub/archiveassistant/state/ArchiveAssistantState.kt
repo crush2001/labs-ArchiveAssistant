@@ -41,5 +41,5 @@ data class ArchiveAssistantState(
 
     val recentTopics: List<Topic> = topics
         .sortedByDescending { it.updatedAtEpochMillis }
-        .take(3)
+        .take(5)
 }

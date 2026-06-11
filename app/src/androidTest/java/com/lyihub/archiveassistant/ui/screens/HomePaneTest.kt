@@ -26,7 +26,7 @@ class HomePaneTest {
                     title = "聚合拾遗",
                     parserInput = "",
                     parserValidationMessage = null,
-                    recentTopics = SampleKnowledgeData.topics.take(3),
+                    recentTopics = SampleKnowledgeData.topics.take(5),
                     itemsByTopic = SampleKnowledgeData.items.groupBy { it.topicId },
                     onParserInputChanged = {},
                     onSubmitParserInput = {},

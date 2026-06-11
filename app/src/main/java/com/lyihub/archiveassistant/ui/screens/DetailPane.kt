@@ -1,11 +1,13 @@
 package com.lyihub.archiveassistant.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,7 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -163,14 +169,6 @@ private fun KnowledgeItemRow(
     item: KnowledgeItem,
     onClick: () -> Unit,
 ) {
-    val secondaryText = when (item.contentType) {
-        ContentType.WEB_ARTICLE -> item.sourceUrl ?: "网页文章"
-        ContentType.IMAGE_SCREENSHOT -> "图像截屏"
-        ContentType.DOCUMENT_PDF -> "文档/PDF"
-        ContentType.PLAIN_TEXT -> item.summary
-        else -> item.summary
-    }
-
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
@@ -200,12 +198,30 @@ private fun KnowledgeItemRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = secondaryText,
+                text = item.summary,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (item.contentType == ContentType.IMAGE_SCREENSHOT && item.imageResName != null) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val resId = context.resources.getIdentifier(
+                    item.imageResName, "drawable", context.packageName
+                )
+                if (resId != 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Image(
+                        painter = painterResource(resId),
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(32f / 9f)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                }
+            }
         }
     }
 }
@@ -257,18 +273,29 @@ fun CardModal(
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "类型: ${item.contentType.label}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = item.summary,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (item.contentType == ContentType.IMAGE_SCREENSHOT && item.imageResName != null) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val resId = context.resources.getIdentifier(
+                        item.imageResName, "drawable", context.packageName
+                    )
+                    if (resId != 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Image(
+                            painter = painterResource(resId),
+                            contentDescription = item.title,
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp)),
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = item.fullText,
