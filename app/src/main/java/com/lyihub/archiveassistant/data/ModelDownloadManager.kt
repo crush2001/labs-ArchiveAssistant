@@ -3,6 +3,7 @@ package com.lyihub.archiveassistant.data
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.util.Log
 import com.lyihub.archiveassistant.domain.LocalModelInfo
 import com.lyihub.archiveassistant.domain.LocalModelState
@@ -34,6 +35,8 @@ interface ModelDownloadManager {
     suspend fun cancelDownload()
 
     suspend fun deleteModel(model: LocalModelInfo): Result<Unit>
+
+    suspend fun importModel(model: LocalModelInfo, uri: Uri): Result<Unit>
 
     fun isModelPresent(model: LocalModelInfo): Boolean
 }
@@ -137,6 +140,50 @@ class OkHttpModelDownloadManager(
             File(modelDir, ".${model.fileName}.part").delete()
             File(modelDir, ".${model.fileName}.segments").delete()
             state.value = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED)
+        }
+    }
+
+    override suspend fun importModel(model: LocalModelInfo, uri: Uri): Result<Unit> = downloadMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val targetFile = File(modelDir, model.fileName)
+            val importFile = File(modelDir, ".${model.fileName}.import")
+            runCatching {
+                modelDir.mkdirs()
+                importFile.delete()
+                state.value = LocalModelState(
+                    status = LocalModelStatus.DOWNLOADING,
+                    totalBytes = model.sizeBytes,
+                )
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    importFile.outputStream().buffered().use { output ->
+                        input.copyTo(output)
+                    }
+                } ?: throw IOException("Unable to open selected model file")
+
+                if (!verifySha256(importFile, model.expectedSha256)) {
+                    importFile.delete()
+                    state.value = LocalModelState(
+                        status = LocalModelStatus.ERROR,
+                        errorMessage = "Selected model checksum mismatch",
+                    )
+                    throw IOException("Selected model checksum mismatch")
+                }
+
+                targetFile.delete()
+                if (!importFile.renameTo(targetFile)) {
+                    throw IOException("Unable to import selected model file")
+                }
+
+                state.value = downloadedState(targetFile, targetFile.length())
+            }.onFailure { error ->
+                importFile.delete()
+                if (state.value.status != LocalModelStatus.ERROR) {
+                    state.value = LocalModelState(
+                        status = LocalModelStatus.ERROR,
+                        errorMessage = error.message ?: "Model import failed",
+                    )
+                }
+            }
         }
     }
 

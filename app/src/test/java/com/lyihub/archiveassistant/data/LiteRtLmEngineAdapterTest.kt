@@ -53,9 +53,9 @@ class LiteRtLmEngineAdapterTest {
             benchmarkResult = BenchResult(
                 promptTokens = 128,
                 generateTokens = 128,
+                timeToFirstTokenMs = 250L,
                 prefillTokensPerSecond = 1200f,
                 decodeTokensPerSecond = 60f,
-                totalTimeMs = 2_240L,
                 backend = InferenceBackend.GPU,
             ),
         )

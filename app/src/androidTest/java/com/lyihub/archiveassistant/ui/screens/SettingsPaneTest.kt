@@ -151,6 +151,24 @@ class SettingsPaneTest {
     }
 
     @Test
+    fun settingsPane_localMode_hidesLocalEndpoint() {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                SettingsPane(
+                    aiSettings = AiEngineSettings(
+                        engineType = AiEngineType.LOCAL_MODEL,
+                        localEndpoint = "http://127.0.0.1:11434",
+                    ),
+                    onAiSettingsChanged = {},
+                    onBack = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("local-endpoint-input").assertDoesNotExist()
+    }
+
+    @Test
     fun settingsPane_displaysTestLatencyButton() {
         composeTestRule.setContent {
             ArchiveAssistantTheme {
@@ -208,7 +226,7 @@ class SettingsPaneTest {
     }
 
     @Test
-    fun settingsPane_localModel_showsTestLatencyButton() {
+    fun settingsPane_localModel_hidesTestLatencyButton() {
         composeTestRule.setContent {
             ArchiveAssistantTheme {
                 SettingsPane(
@@ -219,7 +237,7 @@ class SettingsPaneTest {
             }
         }
 
-        composeTestRule.onNodeWithTag("test-api-latency-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("test-api-latency-button").assertDoesNotExist()
     }
 
     @Test
@@ -259,16 +277,21 @@ class SettingsPaneTest {
     @Test
     fun notDownloadedShowsDownloadButton() {
         var downloadClicked = false
+        var chooseClicked = false
 
         setLocalModelContent(
             localModelState = LocalModelState(LocalModelStatus.NOT_DOWNLOADED),
             onDownloadModel = { downloadClicked = true },
+            onChooseModelFile = { chooseClicked = true },
         )
 
         composeTestRule.onNodeWithTag("download-model-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("choose-model-file-button").assertIsDisplayed()
         composeTestRule.onNodeWithTag("download-model-button").performClick()
+        composeTestRule.onNodeWithTag("choose-model-file-button").performClick()
 
         assertTrue(downloadClicked)
+        assertTrue(chooseClicked)
     }
 
     @Test
@@ -284,12 +307,27 @@ class SettingsPaneTest {
         )
 
         composeTestRule.onNodeWithTag("download-progress-bar").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("download-progress-text").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("download-progress-text").assertTextEquals("50%")
+        composeTestRule.onNodeWithTag("model-busy-text").assertTextContains("正在下载模型，请稍候")
         composeTestRule.onNodeWithTag("cancel-download-button").assertIsDisplayed()
         composeTestRule.onNodeWithTag("cancel-download-button").performClick()
 
         assertTrue(cancelClicked)
+    }
+
+    @Test
+    fun importingModelShowsBusyPromptWithoutRepeatActions() {
+        setLocalModelContent(
+            localModelState = LocalModelState(
+                status = LocalModelStatus.DOWNLOADING,
+                totalBytes = 100,
+            ),
+        )
+
+        composeTestRule.onNodeWithTag("download-progress-bar").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("model-busy-text").assertTextContains("正在导入并校验模型文件，请稍候")
+        composeTestRule.onNodeWithTag("download-model-button").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("choose-model-file-button").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("cancel-download-button").assertDoesNotExist()
     }
 
     @Test
@@ -340,6 +378,7 @@ class SettingsPaneTest {
     @Test
     fun errorShowsRetryButton() {
         var downloadClicked = false
+        var chooseClicked = false
 
         setLocalModelContent(
             localModelState = LocalModelState(
@@ -347,13 +386,17 @@ class SettingsPaneTest {
                 errorMessage = "test error",
             ),
             onDownloadModel = { downloadClicked = true },
+            onChooseModelFile = { chooseClicked = true },
         )
 
         composeTestRule.onNodeWithTag("model-error-text").assertTextContains("test error")
-        composeTestRule.onNodeWithTag("retry-button").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("retry-button").performClick()
+        composeTestRule.onNodeWithTag("download-model-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("choose-model-file-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("download-model-button").performClick()
+        composeTestRule.onNodeWithTag("choose-model-file-button").performClick()
 
         assertTrue(downloadClicked)
+        assertTrue(chooseClicked)
     }
 
     @Test
@@ -362,16 +405,16 @@ class SettingsPaneTest {
             localModelState = LocalModelState(LocalModelStatus.READY),
             benchmarkResult = BenchResult(
                 promptTokens = 128,
-                generateTokens = 128,
+                generateTokens = 64,
+                timeToFirstTokenMs = 250L,
                 prefillTokensPerSecond = 1000f,
                 decodeTokensPerSecond = 50f,
-                totalTimeMs = 5000L,
                 backend = InferenceBackend.GPU,
             ),
         )
 
         composeTestRule.onNodeWithTag("benchmark-result-text")
-            .assertTextContains("Prefill: 1000.0 tk/s | Decode: 50.0 tk/s | 总耗时: 5000ms | 后端: GPU")
+            .assertTextContains("预填充: 1000.0 tk/s (128 tokens) | 解码: 50.0 tk/s (64 tokens) | TTFT: 250ms | 后端: GPU")
     }
 
     @Test
@@ -470,6 +513,7 @@ class SettingsPaneTest {
         localModelState: LocalModelState,
         benchmarkResult: BenchResult? = null,
         onDownloadModel: () -> Unit = {},
+        onChooseModelFile: () -> Unit = {},
         onCancelDownload: () -> Unit = {},
         onStartModel: () -> Unit = {},
         onStopModel: () -> Unit = {},
@@ -485,6 +529,7 @@ class SettingsPaneTest {
                     localModelState = localModelState,
                     benchmarkResult = benchmarkResult,
                     onDownloadModel = onDownloadModel,
+                    onChooseModelFile = onChooseModelFile,
                     onCancelDownload = onCancelDownload,
                     onStartModel = onStartModel,
                     onStopModel = onStopModel,

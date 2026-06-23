@@ -5,6 +5,7 @@ import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.ExperimentalApi
+import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.lyihub.archiveassistant.domain.BenchResult
 import com.lyihub.archiveassistant.domain.InferenceBackend
 import com.lyihub.archiveassistant.domain.LocalLlmEngine
@@ -40,6 +41,7 @@ class LiteRtLmEngineAdapter(private val context: Context) : LocalLlmEngine {
                     for (attempt in attempts) {
                         val candidate = createEngineBackend(attempt)
                         val initialized = runCatching {
+                            ExperimentalFlags.enableBenchmark = true
                             Engine(EngineConfig(modelPath = modelPath, backend = candidate)).also { it.initialize() }
                         }
                         initialized.onSuccess { readyEngine ->
@@ -106,20 +108,28 @@ class LiteRtLmEngineAdapter(private val context: Context) : LocalLlmEngine {
 
             runCatching {
                 val prompt = benchmarkPrompt(promptTokens)
-                val prefillStart = System.nanoTime()
-                val result = generate(prompt, maxTokens = generateTokens).getOrThrow()
-                val totalNs = System.nanoTime() - prefillStart
-                val prefillNs = totalNs.coerceAtLeast(1L)
-                val estimatedDecodeNs = result.length.coerceAtLeast(1) * 1_000_000L
+                val currentEngine = engine ?: error("Local LLM engine is not initialized")
 
-                BenchResult(
-                    promptTokens = promptTokens,
-                    generateTokens = generateTokens,
-                    prefillTokensPerSecond = tokensPerSecond(promptTokens, prefillNs),
-                    decodeTokensPerSecond = tokensPerSecond(generateTokens, estimatedDecodeNs),
-                    totalTimeMs = totalNs / 1_000_000,
-                    backend = activeBackend,
-                )
+                stateFlow.value = readyState(LocalModelStatus.INFERENCING)
+                try {
+                    withTimeout(GENERATE_TIMEOUT_MS) {
+                        currentEngine.createConversation().use { conversation ->
+                            val response = conversation.sendMessage(prompt)
+                            conversation.renderMessageIntoString(response)
+                            val benchmarkInfo = conversation.getBenchmarkInfo()
+                            BenchResult(
+                                promptTokens = benchmarkInfo.lastPrefillTokenCount,
+                                generateTokens = benchmarkInfo.lastDecodeTokenCount,
+                                timeToFirstTokenMs = (benchmarkInfo.timeToFirstTokenInSecond * 1_000).toLong(),
+                                prefillTokensPerSecond = benchmarkInfo.lastPrefillTokensPerSecond.toFloat(),
+                                decodeTokensPerSecond = benchmarkInfo.lastDecodeTokensPerSecond.toFloat(),
+                                backend = activeBackend,
+                            )
+                        }
+                    }
+                } finally {
+                    stateFlow.value = readyState(LocalModelStatus.READY)
+                }
             }
         }
 
@@ -164,9 +174,6 @@ class LiteRtLmEngineAdapter(private val context: Context) : LocalLlmEngine {
             repeat(repeats) { append(phrase) }
         }.trim()
     }
-
-    private fun tokensPerSecond(tokens: Int, elapsedNs: Long): Float =
-        (tokens.toDouble() * 1_000_000_000.0 / elapsedNs.toDouble()).toFloat()
 
     private companion object {
         const val INITIALIZE_TIMEOUT_MS = 60_000L

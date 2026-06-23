@@ -4,6 +4,8 @@ import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Context
 import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -73,6 +75,14 @@ fun ArchiveAssistantApp(
     val onAiSettingsChanged: (AiEngineSettings) -> Unit = { settings ->
         effectiveStateStore.updateAiSettings(settings)
     }
+    val modelFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let(effectiveStateStore::importLocalModel)
+    }
+    val onChooseModelFile = {
+        modelFilePickerLauncher.launch(arrayOf("*/*"))
+    }
 
     val presets = aiPresetRepository?.presets?.collectAsState(initial = emptyList())?.value ?: emptyList()
     val onPresetsChanged: (List<AiEnginePreset>) -> Unit = { updatedPresets ->
@@ -139,6 +149,7 @@ fun ArchiveAssistantApp(
                 onAiSettingsChanged = onAiSettingsChanged,
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
+                onChooseModelFile = onChooseModelFile,
             )
         } else {
             SinglePaneLayout(
@@ -146,6 +157,7 @@ fun ArchiveAssistantApp(
                 onAiSettingsChanged = onAiSettingsChanged,
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
+                onChooseModelFile = onChooseModelFile,
             )
         }
 
@@ -488,6 +500,7 @@ private fun SinglePaneLayout(
     onAiSettingsChanged: (AiEngineSettings) -> Unit,
     presets: List<AiEnginePreset>,
     onPresetsChanged: (List<AiEnginePreset>) -> Unit,
+    onChooseModelFile: () -> Unit,
 ) {
     val state = stateStore.state
 
@@ -549,6 +562,7 @@ private fun SinglePaneLayout(
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
                 onDownloadModel = stateStore::downloadModel,
+                onChooseModelFile = onChooseModelFile,
                 onCancelDownload = stateStore::cancelDownload,
                 onStartModel = stateStore::startModel,
                 onStopModel = stateStore::stopModel,
@@ -637,6 +651,7 @@ private fun TwoPaneLayout(
     onAiSettingsChanged: (AiEngineSettings) -> Unit,
     presets: List<AiEnginePreset>,
     onPresetsChanged: (List<AiEnginePreset>) -> Unit,
+    onChooseModelFile: () -> Unit,
 ) {
     val state = stateStore.state
     val hingeBounds = layoutInfo.hingeBounds
@@ -708,6 +723,7 @@ private fun TwoPaneLayout(
                     presets = presets,
                     onPresetsChanged = onPresetsChanged,
                     onDownloadModel = stateStore::downloadModel,
+                    onChooseModelFile = onChooseModelFile,
                     onCancelDownload = stateStore::cancelDownload,
                     onStartModel = stateStore::startModel,
                     onStopModel = stateStore::stopModel,

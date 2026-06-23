@@ -1,5 +1,6 @@
 package com.lyihub.archiveassistant.data
 
+import android.net.Uri
 import com.lyihub.archiveassistant.domain.LocalModelInfo
 import com.lyihub.archiveassistant.domain.LocalModelState
 import com.lyihub.archiveassistant.domain.LocalModelStatus
@@ -263,6 +264,8 @@ class ModelDownloadManagerTest {
             File(modelDir, ".${model.fileName}.part").delete()
             emit(LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED))
         }
+
+        override suspend fun importModel(model: LocalModelInfo, uri: Uri): Result<Unit> = Result.success(Unit)
 
         override fun isModelPresent(model: LocalModelInfo): Boolean {
             return File(modelDir, model.fileName).exists()

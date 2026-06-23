@@ -86,9 +86,9 @@ data class LocalModelState(
 data class BenchResult(
     val promptTokens: Int,
     val generateTokens: Int,
+    val timeToFirstTokenMs: Long,
     val prefillTokensPerSecond: Float,
     val decodeTokensPerSecond: Float,
-    val totalTimeMs: Long,
     val backend: InferenceBackend,
 )
 

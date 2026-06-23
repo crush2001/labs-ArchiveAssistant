@@ -1,6 +1,7 @@
 package com.lyihub.archiveassistant.state
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -763,6 +764,14 @@ class ArchiveAssistantStateStore(
         val manager = modelDownloadManager ?: return
         scope.launch {
             manager.cancelDownload()
+        }
+    }
+
+    fun importLocalModel(uri: Uri) {
+        if (state.localModelState.status in setOf(LocalModelStatus.DOWNLOADING, LocalModelStatus.INITIALIZING)) return
+        val manager = modelDownloadManager ?: return
+        scope.launch {
+            manager.importModel(GEMMA_4_E4B_IT, uri)
         }
     }
 

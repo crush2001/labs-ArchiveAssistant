@@ -68,6 +68,7 @@ fun SettingsPane(
     modifier: Modifier = Modifier,
     testLatency: suspend (AiEngineSettings, String) -> AiEndpointLatencyResult = ::testAiEndpointLatency,
     onDownloadModel: () -> Unit = {},
+    onChooseModelFile: () -> Unit = {},
     onCancelDownload: () -> Unit = {},
     onStartModel: () -> Unit = {},
     onStopModel: () -> Unit = {},
@@ -355,39 +356,58 @@ fun SettingsPane(
 
                             when (localModelState.status) {
                                 LocalModelStatus.NOT_DOWNLOADED, LocalModelStatus.ERROR -> {
-                                    Button(
-                                        onClick = onDownloadModel,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("download-model-button"),
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Text("下载模型")
+                                        Button(
+                                            onClick = onDownloadModel,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("download-model-button"),
+                                        ) {
+                                            Text("下载模型")
+                                        }
+                                        Button(
+                                            onClick = onChooseModelFile,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .testTag("choose-model-file-button"),
+                                        ) {
+                                            Text("选择文件")
+                                        }
                                     }
                                 }
                                 LocalModelStatus.DOWNLOADING -> {
-                                    val clampedProgress = localModelState.downloadProgress.coerceIn(0f, 1f)
+                                    val isImportingModel = localModelState.downloadBytes == 0L &&
+                                        localModelState.downloadProgress == 0f
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
                                         LinearProgressIndicator(
-                                            progress = { clampedProgress },
+                                            progress = { localModelState.downloadProgress },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .testTag("download-progress-bar"),
                                         )
                                         Text(
-                                            text = "${(clampedProgress * 100).toInt()}%",
+                                            text = if (isImportingModel) "正在导入并校验模型文件，请稍候" else "正在下载模型，请稍候",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.testTag("download-progress-text"),
-                                        )
-                                        TextButton(
-                                            onClick = onCancelDownload,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .testTag("cancel-download-button"),
-                                        ) {
-                                            Text("取消")
+                                                .testTag("model-busy-text"),
+                                        )
+                                        if (!isImportingModel) {
+                                            TextButton(
+                                                onClick = onCancelDownload,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .testTag("cancel-download-button"),
+                                            ) {
+                                                Text("取消")
+                                            }
                                         }
                                     }
                                 }
@@ -499,10 +519,12 @@ fun SettingsPane(
 
                                 benchmarkResult?.let { result ->
                                     Text(
-                                        text = "Prefill: %.1f tk/s | Decode: %.1f tk/s | 总耗时: %dms | 后端: %s".format(
+                                        text = "预填充: %.1f tk/s (%d tokens) | 解码: %.1f tk/s (%d tokens) | TTFT: %dms | 后端: %s".format(
                                             result.prefillTokensPerSecond,
+                                            result.promptTokens,
                                             result.decodeTokensPerSecond,
-                                            result.totalTimeMs,
+                                            result.generateTokens,
+                                            result.timeToFirstTokenMs,
                                             when (result.backend) {
                                                 InferenceBackend.NPU -> "NPU"
                                                 InferenceBackend.GPU -> "GPU"
@@ -530,59 +552,53 @@ fun SettingsPane(
                                             .testTag("model-error-text"),
                                     )
                                 }
-                                Button(
-                                    onClick = onDownloadModel,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("retry-button"),
-                                ) {
-                                    Text("重试")
-                                }
                             }
 
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            latencyResultText = null
-                            isTestingLatency = true
-                            coroutineScope.launch {
-                                val result = testLatency(aiSettings, aiSettings.apiKey)
-                                latencyResultText = when (result) {
-                                    is AiEndpointLatencyResult.Success -> "延迟：${result.elapsedMillis} ms"
-                                    is AiEndpointLatencyResult.Failure -> "测试失败：${result.message}"
+                    if (aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
+                        Button(
+                            onClick = {
+                                latencyResultText = null
+                                isTestingLatency = true
+                                coroutineScope.launch {
+                                    val result = testLatency(aiSettings, aiSettings.apiKey)
+                                    latencyResultText = when (result) {
+                                        is AiEndpointLatencyResult.Success -> "延迟：${result.elapsedMillis} ms"
+                                        is AiEndpointLatencyResult.Failure -> "测试失败：${result.message}"
+                                    }
+                                    isTestingLatency = false
                                 }
-                                isTestingLatency = false
-                            }
-                        },
-                        enabled = !isTestingLatency,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("test-api-latency-button"),
-                    ) {
-                        if (isTestingLatency) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.padding(end = 8.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        Text("测试 API 延迟")
-                    }
-
-                    latencyResultText?.let { text ->
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = when {
-                                text.startsWith("延迟：") -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.error
                             },
+                            enabled = !isTestingLatency,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .testTag("api-latency-result"),
-                        )
+                                .testTag("test-api-latency-button"),
+                        ) {
+                            if (isTestingLatency) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                            Text("测试 API 延迟")
+                        }
+
+                        latencyResultText?.let { text ->
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = when {
+                                    text.startsWith("延迟：") -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.error
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("api-latency-result"),
+                            )
+                        }
                     }
                 }
             }

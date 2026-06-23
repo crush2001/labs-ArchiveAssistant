@@ -1,5 +1,6 @@
 package com.lyihub.archiveassistant.state
 
+import android.net.Uri
 import com.lyihub.archiveassistant.data.ModelDownloadManager
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
@@ -1003,6 +1004,10 @@ class ArchiveAssistantStateStoreTest {
         }
 
         override suspend fun deleteModel(model: LocalModelInfo): Result<Unit> = Result.success(Unit)
+
+        override suspend fun importModel(model: LocalModelInfo, uri: Uri): Result<Unit> {
+            return Result.success(Unit)
+        }
 
         override fun isModelPresent(model: LocalModelInfo): Boolean = modelPresent
 

@@ -11,9 +11,9 @@ class FakeLocalLlmEngine(
     var benchmarkResult: BenchResult = BenchResult(
         promptTokens = 128,
         generateTokens = 128,
+        timeToFirstTokenMs = 240L,
         prefillTokensPerSecond = 1000f,
         decodeTokensPerSecond = 50f,
-        totalTimeMs = 2_688L,
         backend = actualBackend,
     ),
 ) : LocalLlmEngine {
