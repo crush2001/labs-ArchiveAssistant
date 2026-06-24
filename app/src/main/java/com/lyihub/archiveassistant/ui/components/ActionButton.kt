@@ -22,9 +22,11 @@ fun ActionButton(
     modifier: Modifier = Modifier,
     testTag: String? = null,
     icon: ImageVector? = null,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = if (testTag != null) modifier.testTag(testTag) else modifier,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
@@ -48,9 +50,11 @@ fun TextActionButton(
     testTag: String? = null,
     icon: ImageVector? = null,
     contentColor: Color = MaterialTheme.colorScheme.primary,
+    enabled: Boolean = true,
 ) {
     androidx.compose.material3.TextButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = if (testTag != null) modifier.testTag(testTag) else modifier,
     ) {
         if (icon != null) {

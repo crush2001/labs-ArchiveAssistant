@@ -1,0 +1,131 @@
+package com.lyihub.archiveassistant.data
+
+import com.lyihub.archiveassistant.domain.AiEngineSettings
+import com.lyihub.archiveassistant.domain.AiEngineType
+import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.SampleKnowledgeData
+import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
+import com.lyihub.archiveassistant.domain.SmartSummarizeResult
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RemoteApiSmartSummarizerTest {
+    @Test
+    fun summarize_openAiCompatible_sendsConfiguredRequestAndParsesJson() = runBlocking {
+        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.OPENAI_COMPATIBLE,
+                baseUrl = "https://api.example.com/v1",
+                modelName = "gpt-4",
+                apiKey = "sk-test",
+            ),
+            transport,
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("AI Agent paper"), SampleKnowledgeData.topics)
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val success = result as SmartSummarizeResult.Success
+        assertEquals(SampleKnowledgeData.DefaultTopicId, success.topicId)
+        assertEquals(ContentType.DOCUMENT, success.contentType)
+        assertEquals(DocumentFormat.MARKDOWN, success.documentFormat)
+        val request = transport.calls.single()
+        assertEquals("https://api.example.com/v1/chat/completions", request.endpoint)
+        assertEquals("Bearer sk-test", request.headers["Authorization"])
+        assertTrue(request.body!!.contains("AI Agent paper"))
+    }
+
+    @Test
+    fun summarize_openAiResponses_parsesOutputText() = runBlocking {
+        val transport = FakeRemoteTransport("""{"output_text":${jsonString(summaryJson())}}""")
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.OPENAI_RESPONSES, baseUrl = "https://api.openai.com/v1"),
+            transport,
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("content"), SampleKnowledgeData.topics)
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val request = transport.calls.single()
+        assertEquals("https://api.openai.com/v1/responses", request.endpoint)
+        assertTrue(request.body!!.contains("\"max_output_tokens\":768"))
+        assertTrue(!request.body.contains("\"max_tokens\""))
+    }
+
+    @Test
+    fun summarize_anthropic_addsVersionHeaderAndParsesContentText() = runBlocking {
+        val transport = FakeRemoteTransport("""{"content":[{"text":${jsonString(summaryJson())}}]}""")
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(engineType = AiEngineType.ANTHROPIC, baseUrl = "https://api.anthropic.com/v1", apiKey = "sk-ant"),
+            transport,
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("content"), SampleKnowledgeData.topics)
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        val request = transport.calls.single()
+        assertEquals("https://api.anthropic.com/v1/messages", request.endpoint)
+        assertEquals("sk-ant", request.headers["x-api-key"])
+        assertTrue(request.headers["Authorization"].isNullOrBlank())
+        assertEquals("2023-06-01", request.headers["anthropic-version"])
+    }
+
+    @Test
+    fun summarize_gemini_usesGenerateContentEndpointAndParsesCandidateText() = runBlocking {
+        val transport = FakeRemoteTransport("""{"candidates":[{"content":{"parts":[{"text":${jsonString(summaryJson())}}]}}]}""")
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(
+                engineType = AiEngineType.GEMINI,
+                baseUrl = "https://generativelanguage.googleapis.com/v1beta",
+                modelName = "gemini-pro",
+                apiKey = "AIza-test",
+            ),
+            transport,
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("content"), SampleKnowledgeData.topics)
+
+        assertTrue(result is SmartSummarizeResult.Success)
+        assertEquals(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIza-test",
+            transport.calls.single().endpoint,
+        )
+    }
+
+    @Test
+    fun summarize_httpFailure_returnsUserVisibleFailure() = runBlocking {
+        val summarizer = RemoteApiSmartSummarizer(
+            AiEngineSettings(baseUrl = "https://api.example.com/v1"),
+            FakeRemoteTransport("{}", code = 401),
+        )
+
+        val result = summarizer.summarize(SmartSummarizeRequest("content"), SampleKnowledgeData.topics)
+
+        assertEquals(SmartSummarizeResult.Failure("远程 AI 请求失败：HTTP 401"), result)
+    }
+
+    private class FakeRemoteTransport(
+        private val body: String,
+        private val code: Int = 200,
+    ) : RemoteAiTransport {
+        val calls = mutableListOf<RemoteAiRequest>()
+
+        override suspend fun send(request: RemoteAiRequest): RemoteAiResponse {
+            calls.add(request)
+            return RemoteAiResponse(code, body)
+        }
+    }
+
+    private fun openAiCompatibleBody(content: String): String =
+        """{"choices":[{"message":{"content":${jsonString(content)}}}]}"""
+
+    private fun summaryJson(): String =
+        """{"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","tag":"论文","title":"Agent 论文","summary":"介绍 Agent 记忆与工具使用。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
+
+    private fun jsonString(value: String): String =
+        "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}

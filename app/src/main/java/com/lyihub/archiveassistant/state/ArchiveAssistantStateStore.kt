@@ -9,6 +9,7 @@ import android.util.Log
 import com.lyihub.archiveassistant.data.AiEngineSettingsRepository
 import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.data.ModelDownloadManager
+import com.lyihub.archiveassistant.data.RemoteApiSmartSummarizer
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
@@ -21,10 +22,14 @@ import com.lyihub.archiveassistant.domain.InferenceBackend
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.LocalLlmClassifier
 import com.lyihub.archiveassistant.domain.LocalLlmEngine
+import com.lyihub.archiveassistant.domain.LocalLlmSmartSummarizer
 import com.lyihub.archiveassistant.domain.LocalModelState
 import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.MockKnowledgeClassifier
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
+import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
+import com.lyihub.archiveassistant.domain.SmartSummarizeResult
+import com.lyihub.archiveassistant.domain.SmartSummarizer
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.service.LocalInferenceGateway
 import kotlinx.coroutines.CoroutineScope
@@ -48,10 +53,14 @@ class ArchiveAssistantStateStore(
     private val inferenceConnection: LocalInferenceGateway? = null,
     private val localModelStateProvider: (() -> LocalModelState)? = null,
     private val localModelFileExists: (() -> Boolean)? = null,
+    smartSummarizer: SmartSummarizer? = null,
+    private val remoteSmartSummarizerFactory: (AiEngineSettings) -> SmartSummarizer = ::RemoteApiSmartSummarizer,
     androidContext: Context? = null,
 ) {
     private val appContext = androidContext
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val smartSummarizer: SmartSummarizer? = smartSummarizer
+        ?: localLlmEngine?.let(::LocalLlmSmartSummarizer)
 
     var state: ArchiveAssistantState by mutableStateOf(
         resolveMockImagePaths(initialState)
@@ -93,6 +102,10 @@ class ArchiveAssistantStateStore(
         scope.launch {
             repo.saveAll(state.topics, state.items)
         }
+    }
+
+    private suspend fun persistData(topics: List<Topic>, items: List<KnowledgeItem>) {
+        appDataRepository?.saveAll(topics, items)
     }
 
     private fun saveAiSettings() {
@@ -464,7 +477,11 @@ class ArchiveAssistantStateStore(
     }
 
     fun updateParserInput(input: String) {
-        state = state.copy(parserInput = input, parserValidationMessage = null)
+        state = state.copy(
+            parserInput = input,
+            parserValidationMessage = null,
+            smartSummarizationMessage = null,
+        )
     }
 
     fun updateHomeSearchQuery(query: String) {
@@ -472,23 +489,154 @@ class ArchiveAssistantStateStore(
     }
 
     fun submitParserInput() {
-        val currentLocalModelState = localModelStateProvider?.invoke() ?: state.localModelState
-        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status == LocalModelStatus.INFERENCING) {
-            state = state.copy(parserValidationMessage = "推理进行中")
-            return
-        }
-        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status != LocalModelStatus.READY) {
-            state = state.copy(parserValidationMessage = "本地模型未就绪，请先开启模型")
+        summarizeParserInput(state.parserInput, closeClipboardOnSuccess = false)
+    }
+
+    private fun summarizeParserInput(rawInput: String, closeClipboardOnSuccess: Boolean) {
+        if (state.isSmartSummarizing) return
+
+        val normalizedInput = rawInput.trim()
+        if (normalizedInput.isBlank()) {
+            state = state.copy(
+                parserValidationMessage = "请输入要归档的内容",
+                smartSummarizationMessage = "请输入要智能总结的内容",
+            )
             return
         }
 
-        if (state.aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
-            handleParserClassificationResult(classifier.classify(state.parserInput, state.topics))
+        val currentLocalModelState = localModelStateProvider?.invoke() ?: state.localModelState
+        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status == LocalModelStatus.INFERENCING) {
+            state = state.copy(parserValidationMessage = "推理进行中", smartSummarizationMessage = "推理进行中")
+            return
+        }
+        if (state.aiSettings.engineType == AiEngineType.LOCAL_MODEL && currentLocalModelState.status != LocalModelStatus.READY) {
+            state = state.copy(parserValidationMessage = "本地模型未就绪，请先开启模型", smartSummarizationMessage = "本地模型未就绪，请先开启模型")
             return
         }
 
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            handleParserClassificationResult(classifyParserInput())
+            summarizeAndSave(rawInput, closeClipboardOnSuccess)
+        }
+    }
+
+    private suspend fun summarizeAndSave(rawInput: String, closeClipboardOnSuccess: Boolean) {
+        state = state.copy(
+            isSmartSummarizing = true,
+            parserValidationMessage = null,
+            smartSummarizationMessage = null,
+        )
+        try {
+            val result = summarizeRawInput(rawInput)
+            handleSmartSummarizeResult(result, rawInput, closeClipboardOnSuccess)
+        } catch (_: Exception) {
+            state = state.copy(smartSummarizationMessage = "保存失败，请稍后重试")
+        } finally {
+            state = state.copy(isSmartSummarizing = false)
+        }
+    }
+
+    private suspend fun summarizeRawInput(rawInput: String): SmartSummarizeResult {
+        if (state.aiSettings.engineType != AiEngineType.LOCAL_MODEL) {
+            val summarizer = smartSummarizer ?: remoteSmartSummarizerFactory(state.aiSettings)
+            return summarizer.summarize(
+                SmartSummarizeRequest(rawText = rawInput),
+                state.topics,
+                state.items,
+            )
+        }
+
+        val engine = localLlmEngine ?: inferenceConnection?.getEngine()
+        if (engine == null) return SmartSummarizeResult.Failure(LOCAL_AI_UNAVAILABLE_MESSAGE)
+
+        val summarizer = com.lyihub.archiveassistant.domain.LocalLlmSmartSummarizer(engine)
+        state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.INFERENCING))
+        return try {
+            summarizer.summarize(
+                SmartSummarizeRequest(rawText = rawInput),
+                state.topics,
+                state.items,
+            )
+        } finally {
+            if (state.localModelState.status == LocalModelStatus.INFERENCING) {
+                state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.READY))
+            }
+        }
+    }
+
+    private suspend fun handleSmartSummarizeResult(
+        result: SmartSummarizeResult,
+        rawInput: String,
+        closeClipboardOnSuccess: Boolean,
+    ) {
+        when (result) {
+            is SmartSummarizeResult.Failure -> {
+                state = state.copy(smartSummarizationMessage = result.message)
+            }
+
+            is SmartSummarizeResult.Success -> saveSmartSummarizeSuccess(result, rawInput, closeClipboardOnSuccess)
+        }
+    }
+
+    private suspend fun saveSmartSummarizeSuccess(
+        result: SmartSummarizeResult.Success,
+        rawInput: String,
+        closeClipboardOnSuccess: Boolean,
+    ) {
+        val validationMessage = when {
+            state.topics.none { it.id == result.topicId } -> "智能总结结果无效，请重试"
+            result.contentType == ContentType.ALL -> "智能总结结果无效，请重试"
+            result.title.isBlank() -> "智能总结结果无效，请重试"
+            else -> null
+        }
+        if (validationMessage != null) {
+            state = state.copy(smartSummarizationMessage = validationMessage)
+            return
+        }
+
+        val itemIndex = nextItemIndex
+        val now = System.currentTimeMillis()
+        val sourceUrl = result.sourceUrl ?: rawInput.extractSourceUrl(result.contentType)
+        val item = KnowledgeItem(
+            id = "item-classified-$itemIndex",
+            topicId = result.topicId,
+            contentType = result.contentType,
+            tag = result.tag,
+            title = result.title,
+            summary = result.summary,
+            fullText = rawInput,
+            sourceUrl = sourceUrl,
+            documentFormat = result.documentFormat,
+            createdAtEpochMillis = now,
+        )
+        val topics = state.topics.map { topic ->
+            if (topic.id == result.topicId) topic.copy(updatedAtEpochMillis = now) else topic
+        }
+        val items = state.items + item
+
+        persistData(topics, items)
+        nextItemIndex++
+        state = state.copy(
+            items = items,
+            topics = topics,
+            parserInput = "",
+            parserValidationMessage = null,
+            smartSummarizationMessage = null,
+            selectedPane = AppPane.DETAIL,
+            selectedTopicId = result.topicId,
+            activeDetailFilter = ContentType.ALL,
+            clipboardContent = if (closeClipboardOnSuccess) null else state.clipboardContent,
+            clipboardImageUri = if (closeClipboardOnSuccess) null else state.clipboardImageUri,
+            clipboardSourceUri = if (closeClipboardOnSuccess) null else state.clipboardSourceUri,
+            clipboardSourceContentType = if (closeClipboardOnSuccess) null else state.clipboardSourceContentType,
+            clipboardSourceDocumentFormat = if (closeClipboardOnSuccess) null else state.clipboardSourceDocumentFormat,
+            clipboardSourceFileName = if (closeClipboardOnSuccess) null else state.clipboardSourceFileName,
+            clipboardSourceLabel = if (closeClipboardOnSuccess) null else state.clipboardSourceLabel,
+            ignoredClipboardSnapshot = if (closeClipboardOnSuccess) null else state.ignoredClipboardSnapshot,
+            showClipboardDialog = if (closeClipboardOnSuccess) false else state.showClipboardDialog,
+        )
+        if (closeClipboardOnSuccess) {
+            releaseDragPermission?.invoke()
+            releaseDragPermission = null
         }
     }
 
@@ -695,21 +843,8 @@ class ArchiveAssistantStateStore(
 
     fun acceptClipboardAndSummarize() {
         val content = state.clipboardContent ?: return
-        releaseDragPermission?.invoke()
-        releaseDragPermission = null
-        state = state.copy(
-            parserInput = content,
-            clipboardContent = null,
-            clipboardImageUri = null,
-            clipboardSourceUri = null,
-            clipboardSourceContentType = null,
-            clipboardSourceDocumentFormat = null,
-            clipboardSourceFileName = null,
-            clipboardSourceLabel = null,
-            ignoredClipboardSnapshot = null,
-            showClipboardDialog = false,
-        )
-        submitParserInput()
+        state = state.copy(parserInput = content)
+        summarizeParserInput(content, closeClipboardOnSuccess = true)
     }
 
     fun acceptClipboardAndManualCreate() {
@@ -792,6 +927,9 @@ class ArchiveAssistantStateStore(
         val connection = inferenceConnection ?: return
         connection.bind()
         connection.startModel(GEMMA_4_E4B_IT, state.aiSettings.localBackendPreference)
+        if (state.localModelState.status !in setOf(LocalModelStatus.INITIALIZING, LocalModelStatus.READY)) {
+            state = state.copy(localModelState = state.localModelState.copy(status = LocalModelStatus.INITIALIZING))
+        }
     }
 
     fun stopModel() {
@@ -898,5 +1036,8 @@ class ArchiveAssistantStateStore(
 
     private companion object {
         const val TAG = "ArchiveAssistantStateStore"
+        const val SMART_SUMMARIZER_UNAVAILABLE_MESSAGE = "智能总结不可用，请先配置真实 AI 引擎"
+        const val LOCAL_AI_UNAVAILABLE_MESSAGE = "本地 AI 不可用，请先开启模型"
     }
+
 }

@@ -1,0 +1,287 @@
+package com.lyihub.archiveassistant.data
+
+import com.lyihub.archiveassistant.domain.AiEngineSettings
+import com.lyihub.archiveassistant.domain.AiEngineType
+import com.lyihub.archiveassistant.domain.ContentType
+import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.KnowledgeItem
+import com.lyihub.archiveassistant.domain.MaterialContext
+import com.lyihub.archiveassistant.domain.MaterialContextSelector
+import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
+import com.lyihub.archiveassistant.domain.SmartSummarizeResult
+import com.lyihub.archiveassistant.domain.SmartSummarizer
+import com.lyihub.archiveassistant.domain.Topic
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.MalformedURLException
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
+import org.json.JSONArray
+import org.json.JSONObject
+
+class RemoteApiSmartSummarizer(
+    private val settings: AiEngineSettings,
+    private val transport: RemoteAiTransport = RealRemoteAiTransport(),
+) : SmartSummarizer {
+    override suspend fun summarize(
+        request: SmartSummarizeRequest,
+        topics: List<Topic>,
+        existingItems: List<KnowledgeItem>,
+    ): SmartSummarizeResult {
+        val normalizedInput = request.rawText.trim()
+        if (normalizedInput.isEmpty()) {
+            return SmartSummarizeResult.Failure("请输入要智能总结的内容")
+        }
+        if (topics.isEmpty()) {
+            return SmartSummarizeResult.Failure("没有可用主题，无法智能总结")
+        }
+
+        val materialContext = MaterialContextSelector.select(normalizedInput, topics, existingItems)
+        val prompt = promptFor(request, normalizedInput, materialContext)
+        val apiRequest = buildRemoteRequest(settings, prompt)
+        if (apiRequest.endpoint.isBlank()) {
+            return SmartSummarizeResult.Failure("远程 AI Endpoint 为空，请检查配置")
+        }
+
+        val response = runCatching { transport.send(apiRequest) }.getOrElse { error ->
+            return SmartSummarizeResult.Failure(mapRemoteError(error))
+        }
+        if (response.code !in 200..299) {
+            return SmartSummarizeResult.Failure("远程 AI 请求失败：HTTP ${response.code}")
+        }
+
+        return runCatching {
+            parseResult(extractModelText(settings.engineType, response.body), topics)
+        }.getOrElse {
+            SmartSummarizeResult.Failure("远程 AI 返回格式无效，请重试")
+        }
+    }
+
+    private fun parseResult(output: String, topics: List<Topic>): SmartSummarizeResult.Success {
+        val json = JSONObject(stripJsonFence(output))
+        val topicId = json.requiredString("topicId")
+        val contentType = enumValue<ContentType>(json.requiredString("contentType"))
+        val tag = json.requiredString("tag")
+        val title = json.requiredString("title")
+        val summary = json.requiredString("summary")
+        val documentFormat = enumValue<DocumentFormat>(json.requiredString("documentFormat"))
+        val sourceUrl = json.optString("sourceUrl").trim()
+
+        require(topics.any { it.id == topicId })
+        require(contentType in ALLOWED_CONTENT_TYPES)
+
+        return SmartSummarizeResult.Success.fromAiJson(
+            topicId = topicId,
+            contentType = contentType,
+            tag = tag,
+            title = title,
+            summary = summary,
+            documentFormat = documentFormat,
+            sourceUrl = sourceUrl,
+        )
+    }
+
+    private fun promptFor(
+        request: SmartSummarizeRequest,
+        normalizedInput: String,
+        materialContext: MaterialContext,
+    ): String = """
+        你是一个归档助手。请只基于用户原始输入和给定素材上下文进行智能总结。
+        你必须从现有主题中选择且只能选择一个 topicId，topicId 必须是下列已有 ID 之一，禁止创建新主题或返回主题名称。
+
+        用户原始输入：$normalizedInput
+        来源 URL（如有）：${request.sourceUrl.orEmpty()}
+        来源标题（如有）：${request.sourceTitle.orEmpty()}
+
+        现有主题：
+        ${materialContext.topicOptions.joinToString("\n") { "- id=${it.id}; title=${it.title}" }}
+
+        相关已归档素材（仅作参考，不要复制为原文）：
+        ${materialContext.selectedSnippets.joinToString("\n") { "- itemId=${it.itemId}; title=${it.title}; snippet=${it.snippet}" }.ifBlank { "（无）" }}
+
+        请推断 contentType、documentFormat 和 sourceUrl（能确定时填写；不能确定时 sourceUrl 返回空字符串）。
+        contentType 只能是：${ALLOWED_CONTENT_TYPES.joinToString(", ") { it.name }}。
+        documentFormat 只能是：${DocumentFormat.values().joinToString(", ") { it.name }}；只有模型明确判断未知文档格式时才返回 UNKNOWN。
+        tag、title、summary 必须简洁，title 不超过 28 个中文字符，summary 不超过 96 个中文字符。
+
+        只返回严格 JSON 对象，不要 Markdown，不要解释，不要额外字段：
+        {"topicId":"现有主题ID","contentType":"WEB_ARTICLE","tag":"简短标签","title":"简洁标题","summary":"一句话摘要","sourceUrl":"来源URL或空字符串","documentFormat":"PDF"}
+    """.trimIndent()
+
+    private fun JSONObject.requiredString(name: String): String {
+        require(has(name) && !isNull(name))
+        return getString(name).trim().also { require(it.isNotEmpty()) }
+    }
+
+    private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value)
+
+    private companion object {
+        val ALLOWED_CONTENT_TYPES = setOf(
+            ContentType.WEB_ARTICLE,
+            ContentType.IMAGE_SCREENSHOT,
+            ContentType.DOCUMENT,
+        )
+    }
+}
+
+interface RemoteAiTransport {
+    suspend fun send(request: RemoteAiRequest): RemoteAiResponse
+}
+
+class RealRemoteAiTransport : RemoteAiTransport {
+    override suspend fun send(request: RemoteAiRequest): RemoteAiResponse = withContext(Dispatchers.IO) {
+        yield()
+        var connection: HttpURLConnection? = null
+        try {
+            connection = URL(request.endpoint).openConnection() as HttpURLConnection
+            connection.requestMethod = request.method
+            connection.connectTimeout = 20_000
+            connection.readTimeout = 60_000
+            connection.instanceFollowRedirects = true
+            connection.doInput = true
+            connection.doOutput = request.body != null
+            connection.setRequestProperty("Content-Type", "application/json")
+            request.headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
+            request.body?.let { body ->
+                connection.outputStream.use { output -> output.write(body.toByteArray(Charsets.UTF_8)) }
+            }
+
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            RemoteAiResponse(code, stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty())
+        } finally {
+            connection?.disconnect()
+        }
+    }
+}
+
+data class RemoteAiRequest(
+    val endpoint: String,
+    val method: String,
+    val headers: Map<String, String>,
+    val body: String?,
+)
+
+data class RemoteAiResponse(
+    val code: Int,
+    val body: String,
+)
+
+internal fun buildRemoteRequest(settings: AiEngineSettings, prompt: String): RemoteAiRequest =
+    when (settings.engineType) {
+        AiEngineType.OPENAI_COMPATIBLE -> openAiCompatibleSummaryRequest(settings, prompt)
+        AiEngineType.OPENAI_RESPONSES -> openAiResponsesSummaryRequest(settings, prompt)
+        AiEngineType.ANTHROPIC -> anthropicSummaryRequest(settings, prompt)
+        AiEngineType.GEMINI -> geminiSummaryRequest(settings, prompt)
+        AiEngineType.LOCAL_MODEL -> error("Local model summarization does not use RemoteApiSmartSummarizer")
+    }
+
+private fun openAiCompatibleSummaryRequest(settings: AiEngineSettings, prompt: String): RemoteAiRequest {
+    val body = JSONObject()
+        .put("model", settings.modelName)
+        .put(
+            "messages",
+            JSONArray().put(JSONObject().put("role", "user").put("content", prompt)),
+        )
+        .put("max_tokens", 768)
+        .toString()
+    return RemoteAiRequest(apiEndpoint(settings.baseUrl, "chat/completions"), "POST", authHeaders(settings.apiKey), body)
+}
+
+private fun openAiResponsesSummaryRequest(settings: AiEngineSettings, prompt: String): RemoteAiRequest {
+    val body = JSONObject()
+        .put("model", settings.modelName)
+        .put("input", prompt)
+        .put("max_output_tokens", 768)
+        .toString()
+    return RemoteAiRequest(apiEndpoint(settings.baseUrl, "responses"), "POST", authHeaders(settings.apiKey), body)
+}
+
+private fun anthropicSummaryRequest(settings: AiEngineSettings, prompt: String): RemoteAiRequest {
+    val body = JSONObject()
+        .put("model", settings.modelName)
+        .put("max_tokens", 768)
+        .put(
+            "messages",
+            JSONArray().put(JSONObject().put("role", "user").put("content", prompt)),
+        )
+        .toString()
+    val headers = anthropicHeaders(settings.apiKey)
+    return RemoteAiRequest(apiEndpoint(settings.baseUrl, "messages"), "POST", headers, body)
+}
+
+private fun geminiSummaryRequest(settings: AiEngineSettings, prompt: String): RemoteAiRequest {
+    val modelPath = if (settings.modelName.startsWith("models/")) settings.modelName else "models/${settings.modelName}"
+    val body = JSONObject()
+        .put(
+            "contents",
+            JSONArray().put(
+                JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt))),
+            ),
+        )
+        .put("generationConfig", JSONObject().put("maxOutputTokens", 768))
+        .toString()
+    return RemoteAiRequest(apiEndpoint(settings.baseUrl, "$modelPath:generateContent") + "?key=${settings.apiKey.trim()}", "POST", emptyMap(), body)
+}
+
+private fun extractModelText(engineType: AiEngineType, responseBody: String): String {
+    val json = JSONObject(responseBody)
+    return when (engineType) {
+        AiEngineType.OPENAI_COMPATIBLE -> json.getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
+        AiEngineType.OPENAI_RESPONSES -> json.optString("output_text").ifBlank {
+            json.getJSONArray("output")
+                .getJSONObject(0)
+                .getJSONArray("content")
+                .getJSONObject(0)
+                .getString("text")
+        }
+        AiEngineType.ANTHROPIC -> json.getJSONArray("content")
+            .getJSONObject(0)
+            .getString("text")
+        AiEngineType.GEMINI -> json.getJSONArray("candidates")
+            .getJSONObject(0)
+            .getJSONObject("content")
+            .getJSONArray("parts")
+            .getJSONObject(0)
+            .getString("text")
+        AiEngineType.LOCAL_MODEL -> error("Local model responses are not remote API responses")
+    }
+}
+
+private fun stripJsonFence(output: String): String {
+    val trimmed = output.trim()
+    if (!trimmed.startsWith("```")) return trimmed
+    return trimmed
+        .removePrefix("```")
+        .removePrefix("json")
+        .trim()
+        .removeSuffix("```")
+        .trim()
+}
+
+private fun apiEndpoint(baseUrl: String, path: String): String {
+    val base = baseUrl.trim().trimEnd('/')
+    return if (base.isBlank()) "" else "$base/$path"
+}
+
+private fun authHeaders(apiKey: String): Map<String, String> =
+    if (apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer ${apiKey.trim()}")
+
+private fun anthropicHeaders(apiKey: String): Map<String, String> =
+    if (apiKey.isBlank()) {
+        mapOf("anthropic-version" to "2023-06-01")
+    } else {
+        mapOf("x-api-key" to apiKey.trim(), "anthropic-version" to "2023-06-01")
+    }
+
+private fun mapRemoteError(error: Throwable): String =
+    when (error) {
+        is MalformedURLException -> "远程 AI Endpoint 无效，请检查配置"
+        is IOException -> error.message ?: "远程 AI 网络请求失败"
+        else -> error.message ?: "远程 AI 请求失败"
+    }

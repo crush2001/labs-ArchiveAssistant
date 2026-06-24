@@ -956,6 +956,8 @@ fun ClipboardDialog(
     onSummarize: () -> Unit,
     onManualCreate: () -> Unit,
     onDismiss: () -> Unit,
+    isSmartSummarizing: Boolean = false,
+    smartSummarizationMessage: String? = null,
 ) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
@@ -1007,6 +1009,13 @@ fun ClipboardDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (smartSummarizationMessage != null) {
+                    Text(
+                        text = smartSummarizationMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -1017,8 +1026,11 @@ fun ClipboardDialog(
                 TextButton(onClick = onManualCreate) {
                     Text("手动归纳")
                 }
-                TextButton(onClick = onSummarize) {
-                    Text("智能归纳")
+                TextButton(
+                    onClick = onSummarize,
+                    enabled = !isSmartSummarizing,
+                ) {
+                    Text(if (isSmartSummarizing) "归纳中…" else "智能归纳")
                 }
             }
         },

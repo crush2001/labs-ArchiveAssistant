@@ -32,11 +32,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val aiSettingsRepository = AiEngineSettingsRepository(aiEngineSettingsDataStore)
+        val inferenceConnection = LocalInferenceConnection(this)
         stateStore = ArchiveAssistantStateStore(
             appDataRepository = AppDataRepository(appDataStore),
             aiSettingsRepository = aiSettingsRepository,
             modelDownloadManager = OkHttpModelDownloadManager(this),
-            inferenceConnection = LocalInferenceConnection(this),
+            inferenceConnection = inferenceConnection,
             androidContext = this,
         )
         window.decorView.setOnDragListener { _, event ->

@@ -56,6 +56,8 @@ fun HomePane(
     onCreateTopic: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onOpenClipboard: () -> Unit,
+    isSmartSummarizing: Boolean = false,
+    smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     PaneContainer(modifier = modifier.testTag("home-pane")) {
@@ -86,6 +88,8 @@ fun HomePane(
                         onInputChanged = onParserInputChanged,
                         onSubmit = onSubmitParserInput,
                         onOpenClipboard = onOpenClipboard,
+                        isSmartSummarizing = isSmartSummarizing,
+                        smartSummarizationMessage = smartSummarizationMessage,
                     )
                 }
             }
@@ -172,6 +176,8 @@ private fun ParserSection(
     onInputChanged: (String) -> Unit,
     onSubmit: () -> Unit,
     onOpenClipboard: () -> Unit,
+    isSmartSummarizing: Boolean = false,
+    smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -217,15 +223,24 @@ private fun ParserSection(
                     testTag = "clipboard-button",
                 )
                 ActionButton(
-                    label = "智能归纳",
+                    label = if (isSmartSummarizing) "归纳中…" else "智能归纳",
                     onClick = onSubmit,
                     testTag = "classify-button",
+                    enabled = !isSmartSummarizing && input.isNotBlank(),
                 )
             }
         }
         if (validationMessage != null) {
             Text(
                 text = validationMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
+        if (smartSummarizationMessage != null) {
+            Text(
+                text = smartSummarizationMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(start = 4.dp),

@@ -23,6 +23,12 @@ class FakeLocalLlmEngine(
     var backendFailures: Set<InferenceBackend> = emptySet()
     var generateFailure: Throwable? = null
     var benchmarkFailure: Throwable? = null
+    var lastPrompt: String? = null
+        private set
+    var lastMaxTokens: Int? = null
+        private set
+    var generateCallCount: Int = 0
+        private set
 
     override val state: Flow<LocalModelState> = stateFlow
 
@@ -59,6 +65,9 @@ class FakeLocalLlmEngine(
 
     override suspend fun generate(prompt: String, maxTokens: Int): Result<String> {
         delayIfNeeded()
+        lastPrompt = prompt
+        lastMaxTokens = maxTokens
+        generateCallCount += 1
         if (!initialized) {
             return Result.failure(IllegalStateException("Local LLM engine is not initialized"))
         }

@@ -2,6 +2,8 @@ package com.lyihub.archiveassistant.ui.screens
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -197,5 +199,112 @@ class HomePaneTest {
         composeTestRule.onNodeWithTag("home-create-topic-button").assertIsDisplayed()
         composeTestRule.onNodeWithTag("home-create-topic-button").performClick()
         assertEquals(true, createTopicCalled)
+    }
+
+    @Test
+    fun homePane_blankInput_classifyButtonIsDisabled() {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("classify-button").assertIsNotEnabled()
+    }
+
+    @Test
+    fun homePane_nonBlankInput_classifyButtonIsEnabled() {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "some input",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("classify-button").assertIsEnabled()
+    }
+
+    @Test
+    fun homePane_smartSummarizing_classifyButtonIsDisabledAndShowsLoadingText() {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "some input",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = {},
+                    isSmartSummarizing = true,
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("classify-button").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("归纳中…").assertIsDisplayed()
+    }
+
+    @Test
+    fun homePane_smartSummarizationMessage_showsErrorText() {
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "some input",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = {},
+                    smartSummarizationMessage = "智能归纳失败",
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("智能归纳失败").assertIsDisplayed()
     }
 }

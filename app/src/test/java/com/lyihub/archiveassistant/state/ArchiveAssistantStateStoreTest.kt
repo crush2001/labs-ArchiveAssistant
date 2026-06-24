@@ -1,7 +1,10 @@
 package com.lyihub.archiveassistant.state
 
 import android.net.Uri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.lyihub.archiveassistant.data.ModelDownloadManager
+import com.lyihub.archiveassistant.data.AppDataRepository
 import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AiEngineType
 import com.lyihub.archiveassistant.domain.AppPane
@@ -14,10 +17,15 @@ import com.lyihub.archiveassistant.domain.LocalModelInfo
 import com.lyihub.archiveassistant.domain.LocalModelState
 import com.lyihub.archiveassistant.domain.LocalModelStatus
 import com.lyihub.archiveassistant.domain.SampleKnowledgeData
+import com.lyihub.archiveassistant.domain.SmartSummarizeRequest
+import com.lyihub.archiveassistant.domain.SmartSummarizeResult
+import com.lyihub.archiveassistant.domain.SmartSummarizer
 import com.lyihub.archiveassistant.service.LocalInferenceGateway
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -58,6 +66,14 @@ class ArchiveAssistantStateStoreTest {
             SampleKnowledgeData.items.filter { it.topicId == SampleKnowledgeData.DefaultTopicId },
             store.state.itemsByTopic.getValue(SampleKnowledgeData.DefaultTopicId),
         )
+    }
+
+    @Test
+    fun initialSmartSummarizationState_idle() {
+        val store = ArchiveAssistantStateStore()
+
+        assertFalse(store.state.isSmartSummarizing)
+        assertNull(store.state.smartSummarizationMessage)
     }
 
     @Test
@@ -116,7 +132,16 @@ class ArchiveAssistantStateStoreTest {
 
     @Test
     fun submitParserInput_whenClassified_addsItemAndClearsInputAndUpdatesTopicTimestamp() {
-        val store = ArchiveAssistantStateStore()
+        val store = smartStore(
+            SmartSummarizeResult.Success(
+                topicId = "topic-ui-inspiration",
+                contentType = ContentType.IMAGE_SCREENSHOT,
+                tag = "截图",
+                title = "Settings panel",
+                summary = "UX screenshot image of a settings panel",
+                documentFormat = DocumentFormat.UNKNOWN,
+            )
+        )
         val initialItemCount = store.state.items.size
         val topicBefore = store.state.topics.first { it.id == "topic-ui-inspiration" }
 
@@ -138,15 +163,144 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
+    fun submitParserInput_whenSmartSummarizeSucceeds_addsItemFromOriginalInput() {
+        val summarizer = FakeSmartSummarizer(
+            SmartSummarizeResult.Success(
+                topicId = "topic-ui-inspiration",
+                contentType = ContentType.WEB_ARTICLE,
+                tag = "AI摘要",
+                title = "智能摘要标题",
+                summary = "智能摘要内容",
+                documentFormat = DocumentFormat.UNKNOWN,
+                sourceUrl = "https://example.com/smart",
+            )
+        )
+        val store = smartStore(summarizer)
+        val initialItemCount = store.state.items.size
+        val topicBefore = store.state.topics.first { it.id == "topic-ui-inspiration" }
+
+        store.updateParserInput("Original raw text https://example.com/raw")
+        store.submitParserInput()
+
+        val newItem = store.state.items.last()
+        assertEquals(1, summarizer.callCount)
+        assertEquals(initialItemCount + 1, store.state.items.size)
+        assertEquals("item-classified-6", newItem.id)
+        assertEquals("topic-ui-inspiration", newItem.topicId)
+        assertEquals(ContentType.WEB_ARTICLE, newItem.contentType)
+        assertEquals("AI摘要", newItem.tag)
+        assertEquals("智能摘要标题", newItem.title)
+        assertEquals("智能摘要内容", newItem.summary)
+        assertEquals("Original raw text https://example.com/raw", newItem.fullText)
+        assertEquals("https://example.com/smart", newItem.sourceUrl)
+        assertEquals(DocumentFormat.UNKNOWN, newItem.documentFormat)
+        assertEquals("", store.state.parserInput)
+        assertFalse(store.state.isSmartSummarizing)
+        assertNull(store.state.smartSummarizationMessage)
+        assertEquals(AppPane.DETAIL, store.state.selectedPane)
+        assertEquals("topic-ui-inspiration", store.state.selectedTopicId)
+
+        val topicAfter = store.state.topics.first { it.id == "topic-ui-inspiration" }
+        assertTrue(topicAfter.updatedAtEpochMillis > topicBefore.updatedAtEpochMillis)
+    }
+
+    @Test
     fun submitParserInput_whenBlank_keepsInputAndSetsValidation() {
-        val store = ArchiveAssistantStateStore()
+        val summarizer = FakeSmartSummarizer(successResult())
+        val store = smartStore(summarizer)
 
         store.updateParserInput("   ")
         store.submitParserInput()
 
         assertEquals("   ", store.state.parserInput)
         assertEquals("请输入要归档的内容", store.state.parserValidationMessage)
+        assertEquals("请输入要智能总结的内容", store.state.smartSummarizationMessage)
+        assertEquals(0, summarizer.callCount)
         assertEquals(SampleKnowledgeData.items, store.state.items)
+    }
+
+    @Test
+    fun submitParserInput_whenInFlight_suppressesDuplicateAndResetsLoading() {
+        val gate = CompletableDeferred<SmartSummarizeResult>()
+        val summarizer = FakeSmartSummarizer(gate = gate)
+        val store = smartStore(summarizer)
+
+        store.updateParserInput("first raw input")
+        store.submitParserInput()
+        assertTrue(store.state.isSmartSummarizing)
+
+        store.updateParserInput("second raw input")
+        store.submitParserInput()
+        assertEquals(1, summarizer.callCount)
+
+        gate.complete(successResult(title = "After gate"))
+        waitUntil { !store.state.isSmartSummarizing }
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(1, store.state.items.count { it.title == "After gate" })
+        assertFalse(store.state.isSmartSummarizing)
+    }
+
+    @Test
+    fun submitParserInput_whenAiFails_persistsNoItemAndShowsMessage() {
+        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("AI失败"))
+        val store = smartStore(summarizer)
+
+        store.updateParserInput("raw input")
+        store.submitParserInput()
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("AI失败", store.state.smartSummarizationMessage)
+        assertFalse(store.state.isSmartSummarizing)
+    }
+
+    @Test
+    fun submitParserInput_whenRemoteSummarizerFails_persistsNoItemAndShowsMessage() {
+        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("远程 AI 请求失败"))
+        val store = ArchiveAssistantStateStore(
+            remoteSmartSummarizerFactory = { summarizer },
+        )
+
+        store.updateParserInput("UX screenshot image of a settings panel")
+        store.submitParserInput()
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("远程 AI 请求失败", store.state.smartSummarizationMessage)
+        assertFalse(store.state.isSmartSummarizing)
+    }
+
+    @Test
+    fun submitParserInput_whenSmartResultInvalid_persistsNoItemAndShowsMessage() {
+        val summarizer = FakeSmartSummarizer(successResult(topicId = "missing-topic"))
+        val store = smartStore(summarizer)
+
+        store.updateParserInput("raw input")
+        store.submitParserInput()
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("智能总结结果无效，请重试", store.state.smartSummarizationMessage)
+        assertFalse(store.state.isSmartSummarizing)
+    }
+
+    @Test
+    fun submitParserInput_whenPersistenceFails_persistsNoItemAndShowsMessage() {
+        val summarizer = FakeSmartSummarizer(successResult(title = "Should not commit"))
+        val store = ArchiveAssistantStateStore(
+            smartSummarizer = summarizer,
+            appDataRepository = AppDataRepository(ThrowingDataStore()),
+        )
+
+        store.updateParserInput("raw input")
+        store.submitParserInput()
+        waitUntil { !store.state.isSmartSummarizing }
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("保存失败，请稍后重试", store.state.smartSummarizationMessage)
+        assertFalse(store.state.isSmartSummarizing)
     }
 
     @Test
@@ -346,8 +500,8 @@ class ArchiveAssistantStateStoreTest {
 
     @Test
     fun recentTopics_afterClassification_reflectsUpdatedTopicAtTop() {
-        val store = ArchiveAssistantStateStore()
         val topicId = "topic-anthropology-clips"
+        val store = smartStore(successResult(topicId = topicId))
         val topicBefore = store.state.topics.first { it.id == topicId }
         assertTrue(store.state.recentTopics.any { it.id == topicId })
 
@@ -632,7 +786,7 @@ class ArchiveAssistantStateStoreTest {
 
     @Test
     fun acceptClipboardAndSummarize_withDragSource_clearsClipboardState() {
-        val store = ArchiveAssistantStateStore()
+        val store = smartStore(FakeSmartSummarizer(successResult(title = "Clipboard summary")))
 
         store.showClipboard(content = "some text", sourceLabel = "拖拽")
         assertTrue(store.state.showClipboardDialog)
@@ -642,6 +796,41 @@ class ArchiveAssistantStateStoreTest {
         assertFalse(store.state.showClipboardDialog)
         assertNull(store.state.clipboardSourceLabel)
         assertEquals("", store.state.parserInput)
+        assertEquals(1, store.state.items.count { it.title == "Clipboard summary" })
+    }
+
+    @Test
+    fun acceptClipboardAndSummarize_usesClipboardContentAndClosesAfterSuccessfulSave() {
+        val summarizer = FakeSmartSummarizer(successResult(title = "Clipboard saved"))
+        val store = smartStore(summarizer)
+
+        store.updateParserInput("main input should not be used")
+        store.showClipboard(content = "clipboard raw content", sourceLabel = "剪切板")
+        store.acceptClipboardAndSummarize()
+
+        val newItem = store.state.items.last()
+        assertEquals(1, summarizer.callCount)
+        assertEquals("clipboard raw content", summarizer.requests.single().rawText)
+        assertEquals("clipboard raw content", newItem.fullText)
+        assertEquals("", store.state.parserInput)
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+        assertEquals(1, store.state.items.count { it.title == "Clipboard saved" })
+    }
+
+    @Test
+    fun acceptClipboardAndSummarize_whenAiFails_keepsClipboardPopupOpenAndSavesNothing() {
+        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("剪切板总结失败"))
+        val store = smartStore(summarizer)
+
+        store.showClipboard(content = "clipboard raw content", sourceLabel = "剪切板")
+        store.acceptClipboardAndSummarize()
+
+        assertEquals(1, summarizer.callCount)
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("剪切板总结失败", store.state.smartSummarizationMessage)
+        assertTrue(store.state.showClipboardDialog)
+        assertEquals("clipboard raw content", store.state.clipboardContent)
     }
 
     @Test
@@ -757,7 +946,7 @@ class ArchiveAssistantStateStoreTest {
     @Test
     fun localModelFullFlow() {
         val downloadManager = FakeModelDownloadManager()
-        val engine = FakeLocalLlmEngine().also {
+        val engine = FakeLocalLlmEngine(returnText = localSmartJson()).also {
             runBlocking { it.initialize("/tmp/model", InferenceBackend.CPU) }
         }
         val inferenceConnection = FakeLocalInferenceGateway(engine)
@@ -793,12 +982,11 @@ class ArchiveAssistantStateStoreTest {
     fun concurrentStartIgnored() {
         val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
         val store = localStore(inferenceConnection = inferenceConnection)
-        inferenceConnection.emit(LocalModelState(status = LocalModelStatus.INITIALIZING))
-        waitUntil { store.state.localModelState.status == LocalModelStatus.INITIALIZING }
 
         store.startModel()
+        store.startModel()
 
-        assertEquals(0, inferenceConnection.startCount)
+        assertEquals(1, inferenceConnection.startCount)
     }
 
     @Test
@@ -912,6 +1100,43 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
+    fun submitParserInput_whenLocalModelReadyButNoEngine_persistsNoItemAndShowsMessage() {
+        val store = localStore(
+            inferenceConnection = FakeLocalInferenceGateway(engine = null),
+            localModelStateProvider = { LocalModelState(status = LocalModelStatus.READY) },
+        )
+        store.updateAiSettings(AiEngineSettings(engineType = AiEngineType.LOCAL_MODEL))
+        store.updateParserInput("local inference note")
+
+        store.submitParserInput()
+
+        assertEquals(SampleKnowledgeData.items, store.state.items)
+        assertEquals("本地 AI 不可用，请先开启模型", store.state.smartSummarizationMessage)
+        assertFalse(store.state.isSmartSummarizing)
+    }
+
+    @Test
+    fun submitParserInput_whenRemoteEngineConfigured_usesRemoteSummarizerFactory() {
+        var factoryCallCount = 0
+        val summarizer = FakeSmartSummarizer(successResult(title = "Remote summary"))
+        val store = ArchiveAssistantStateStore(
+            remoteSmartSummarizerFactory = { settings ->
+                factoryCallCount++
+                assertEquals(AiEngineType.OPENAI_COMPATIBLE, settings.engineType)
+                summarizer
+            },
+        )
+        store.updateParserInput("remote inference note")
+
+        store.submitParserInput()
+
+        assertEquals(1, factoryCallCount)
+        assertEquals(1, summarizer.callCount)
+        assertTrue(store.state.items.any { it.title == "Remote summary" })
+        assertEquals(null, store.state.smartSummarizationMessage)
+    }
+
+    @Test
     fun benchmarkSuccess() {
         val engine = FakeLocalLlmEngine().also {
             runBlocking { it.initialize("/tmp/model", InferenceBackend.CPU) }
@@ -970,6 +1195,28 @@ class ArchiveAssistantStateStoreTest {
         localModelFileExists = { modelFileExists },
         localModelStateProvider = localModelStateProvider,
     )
+
+    private fun smartStore(summarizer: SmartSummarizer) = ArchiveAssistantStateStore(
+        smartSummarizer = summarizer,
+    )
+
+    private fun smartStore(result: SmartSummarizeResult) = smartStore(FakeSmartSummarizer(result))
+
+    private fun successResult(
+        topicId: String = SampleKnowledgeData.DefaultTopicId,
+        title: String = "Smart title",
+    ) = SmartSummarizeResult.Success(
+        topicId = topicId,
+        contentType = ContentType.DOCUMENT,
+        tag = "智能摘要",
+        title = title,
+        summary = "Smart summary",
+        documentFormat = DocumentFormat.MARKDOWN,
+    )
+
+    private fun localSmartJson() = """
+        {"topicId":"${SampleKnowledgeData.DefaultTopicId}","contentType":"DOCUMENT","tag":"本地摘要","title":"本地摘要标题","summary":"本地摘要内容","sourceUrl":"","documentFormat":"MARKDOWN"}
+    """.trimIndent()
 
     private fun waitUntil(assertion: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 2_000L
@@ -1050,6 +1297,32 @@ class ArchiveAssistantStateStoreTest {
 
         fun emit(localModelState: LocalModelState) {
             state.value = localModelState
+        }
+    }
+
+    private class FakeSmartSummarizer(
+        private val result: SmartSummarizeResult? = null,
+        private val gate: CompletableDeferred<SmartSummarizeResult>? = null,
+    ) : SmartSummarizer {
+        val requests = mutableListOf<SmartSummarizeRequest>()
+        var callCount = 0
+
+        override suspend fun summarize(
+            request: SmartSummarizeRequest,
+            topics: List<com.lyihub.archiveassistant.domain.Topic>,
+            existingItems: List<com.lyihub.archiveassistant.domain.KnowledgeItem>,
+        ): SmartSummarizeResult {
+            callCount++
+            requests += request
+            return gate?.await() ?: result ?: SmartSummarizeResult.Failure("未配置测试结果")
+        }
+    }
+
+    private class ThrowingDataStore : DataStore<Preferences> {
+        override val data: Flow<Preferences> = emptyFlow()
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+            throw IllegalStateException("save failed")
         }
     }
 }

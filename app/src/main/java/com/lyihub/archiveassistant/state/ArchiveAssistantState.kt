@@ -44,6 +44,8 @@ data class ArchiveAssistantState(
     val activeDetailFilter: ContentType = ContentType.ALL,
     val parserInput: String = "",
     val parserValidationMessage: String? = null,
+    val isSmartSummarizing: Boolean = false,
+    val smartSummarizationMessage: String? = null,
     val topicValidationMessage: String? = null,
     val modalItem: KnowledgeItem? = null,
     val aiSettings: AiEngineSettings = AiEngineSettings(),
