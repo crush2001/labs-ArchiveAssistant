@@ -2000,7 +2000,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         articlePaint.color = AndroidColor.rgb(247, 240, 219)
         canvas.drawRect(label, articlePaint)
         articlePaint.color = AndroidColor.WHITE
-        canvas.drawRect(label, goldPaint)
+        drawInsideStrokeRect(canvas, label, goldPaint)
         val innerInset = dp(6f)
         val innerLabel = RectF(
             label.left + innerInset,
@@ -2008,7 +2008,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             label.right - innerInset,
             label.bottom - innerInset,
         )
-        canvas.drawRect(innerLabel, goldPaint)
+        drawInsideStrokeRect(canvas, innerLabel, goldPaint)
         drawCoverCornerOrnaments(canvas, innerLabel)
 
         drawVerticalText(
@@ -2021,6 +2021,14 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         )
         drawCenteredText(canvas, "甲辰年冬月", label.centerX(), label.bottom - dp(26f), metaPaint)
         drawPageNumber(canvas, rect, pageNumber)
+    }
+
+    private fun drawInsideStrokeRect(canvas: Canvas, rect: RectF, paint: Paint) {
+        val strokeInset = paint.strokeWidth / 2f
+        val strokeRect = RectF(rect).apply {
+            inset(strokeInset, strokeInset)
+        }
+        canvas.drawRect(strokeRect, paint)
     }
 
     private fun drawCoverCornerOrnaments(canvas: Canvas, innerLabel: RectF) {
