@@ -1,6 +1,7 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,14 +18,18 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -56,6 +61,7 @@ fun HomePane(
     onCreateTopic: () -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onOpenClipboard: () -> Unit,
+    onOpenMemorialDemo: (() -> Unit)? = null,
     isSmartSummarizing: Boolean = false,
     smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
@@ -75,6 +81,11 @@ fun HomePane(
                         contentDescription = "设置",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            },
+            actions = {
+                if (onOpenMemorialDemo != null) {
+                    MemorialDemoButton(onClick = onOpenMemorialDemo)
                 }
             },
         )
@@ -166,6 +177,29 @@ fun HomePane(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MemorialDemoButton(onClick: () -> Unit) {
+    val outline = Color(0xFF9E2F28)
+    val paper = Color(0xFFFFF4D6)
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .border(1.dp, outline.copy(alpha = 0.55f), MaterialTheme.shapes.small)
+            .testTag("memorial-demo-button"),
+        colors = ButtonDefaults.textButtonColors(
+            containerColor = paper.copy(alpha = 0.82f),
+            contentColor = outline,
+        ),
+    ) {
+        Text(
+            text = "奏章",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

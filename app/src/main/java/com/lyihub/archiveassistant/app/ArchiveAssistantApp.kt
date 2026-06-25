@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,7 @@ import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
 import com.lyihub.archiveassistant.ui.screens.HomePane
 import com.lyihub.archiveassistant.ui.screens.ManagePane
+import com.lyihub.archiveassistant.ui.screens.MemorialDemoOverlay
 import com.lyihub.archiveassistant.ui.screens.SettingsPane
 import kotlinx.coroutines.launch
 
@@ -130,6 +133,8 @@ fun ArchiveAssistantApp(
     val state = effectiveStateStore.state
     val layoutInfo = rememberWindowLayoutInfo()
     val showTwoPanes = layoutInfo.shouldShowTwoPanes(state.selectedTopicId)
+    val showMemorialDemo = remember { mutableStateOf(false) }
+    val openMemorialDemo = { showMemorialDemo.value = true }
 
     val layoutModeTag = when (layoutInfo.mode) {
         LayoutMode.COMPACT -> "layout-mode-compact"
@@ -150,6 +155,7 @@ fun ArchiveAssistantApp(
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
                 onChooseModelFile = onChooseModelFile,
+                onOpenMemorialDemo = openMemorialDemo,
             )
         } else {
             SinglePaneLayout(
@@ -158,6 +164,7 @@ fun ArchiveAssistantApp(
                 presets = presets,
                 onPresetsChanged = onPresetsChanged,
                 onChooseModelFile = onChooseModelFile,
+                onOpenMemorialDemo = openMemorialDemo,
             )
         }
 
@@ -216,6 +223,10 @@ fun ArchiveAssistantApp(
                 onManualCreate = effectiveStateStore::acceptClipboardAndManualCreate,
                 onDismiss = effectiveStateStore::dismissClipboardDialog,
             )
+        }
+
+        if (showMemorialDemo.value) {
+            MemorialDemoOverlay(onDismiss = { showMemorialDemo.value = false })
         }
     }
 }
@@ -503,6 +514,7 @@ private fun SinglePaneLayout(
     presets: List<AiEnginePreset>,
     onPresetsChanged: (List<AiEnginePreset>) -> Unit,
     onChooseModelFile: () -> Unit,
+    onOpenMemorialDemo: () -> Unit,
 ) {
     val state = stateStore.state
 
@@ -524,6 +536,7 @@ private fun SinglePaneLayout(
             onCreateTopic = stateStore::openTopicManagementForCreate,
             onSearchQueryChanged = stateStore::updateHomeSearchQuery,
             onOpenClipboard = stateStore::openLatestClipboardDialog,
+            onOpenMemorialDemo = onOpenMemorialDemo,
         )
 
         AppPane.DETAIL -> {
@@ -557,6 +570,7 @@ private fun SinglePaneLayout(
                     onCreateTopic = stateStore::openTopicManagementForCreate,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                     onOpenClipboard = stateStore::openLatestClipboardDialog,
+                    onOpenMemorialDemo = onOpenMemorialDemo,
                 )
             }
         }
@@ -615,6 +629,7 @@ private fun SinglePaneLayout(
             onCreateTopic = stateStore::openTopicManagementForCreate,
             onSearchQueryChanged = stateStore::updateHomeSearchQuery,
             onOpenClipboard = stateStore::openLatestClipboardDialog,
+            onOpenMemorialDemo = onOpenMemorialDemo,
         )
 
         AppPane.CARD_DETAIL -> {
@@ -648,6 +663,7 @@ private fun SinglePaneLayout(
                     onCreateTopic = stateStore::openTopicManagementForCreate,
                     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                     onOpenClipboard = stateStore::openLatestClipboardDialog,
+                    onOpenMemorialDemo = onOpenMemorialDemo,
                 )
             }
         }
@@ -662,6 +678,7 @@ private fun TwoPaneLayout(
     presets: List<AiEnginePreset>,
     onPresetsChanged: (List<AiEnginePreset>) -> Unit,
     onChooseModelFile: () -> Unit,
+    onOpenMemorialDemo: () -> Unit,
 ) {
     val state = stateStore.state
     val hingeBounds = layoutInfo.hingeBounds
@@ -685,6 +702,7 @@ private fun TwoPaneLayout(
                 onCreateTopic = stateStore::openTopicManagementForCreate,
                 onSearchQueryChanged = stateStore::updateHomeSearchQuery,
                 onOpenClipboard = stateStore::openLatestClipboardDialog,
+                onOpenMemorialDemo = onOpenMemorialDemo,
             )
         }
 

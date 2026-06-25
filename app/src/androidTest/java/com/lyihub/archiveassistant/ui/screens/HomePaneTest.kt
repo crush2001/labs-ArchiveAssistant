@@ -1,6 +1,7 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -52,19 +53,50 @@ class HomePaneTest {
     }
 
     @Test
+    fun homePane_memorialDemoButton_click_triggersCallback() {
+        var memorialDemoCalled = false
+
+        composeTestRule.setContent {
+            ArchiveAssistantTheme {
+                HomePane(
+                    title = "聚合拾遗",
+                    parserInput = "",
+                    parserValidationMessage = null,
+                    recentTopics = emptyList(),
+                    itemsByTopic = emptyMap(),
+                    onParserInputChanged = {},
+                    onSubmitParserInput = {},
+                    onTopicSelected = {},
+                    onOpenSettings = {},
+                    onOpenManage = {},
+                    onCreateTopic = {},
+                    searchQuery = "",
+                    onSearchQueryChanged = {},
+                    onOpenClipboard = {},
+                    onOpenMemorialDemo = { memorialDemoCalled = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("memorial-demo-button").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("memorial-demo-button").performClick()
+        assertEquals(true, memorialDemoCalled)
+    }
+
+    @Test
     fun homePane_parserInput_typeAndSubmit_triggersCallbacks() {
-        var inputValue = ""
+        val inputValue = mutableStateOf("")
         var submitCalled = false
 
         composeTestRule.setContent {
             ArchiveAssistantTheme {
                 HomePane(
                     title = "聚合拾遗",
-                    parserInput = inputValue,
+                    parserInput = inputValue.value,
                     parserValidationMessage = null,
                     recentTopics = emptyList(),
                     itemsByTopic = emptyMap(),
-                    onParserInputChanged = { inputValue = it },
+                    onParserInputChanged = { inputValue.value = it },
                     onSubmitParserInput = { submitCalled = true },
                     onTopicSelected = {},
                     onOpenSettings = {},
@@ -78,7 +110,7 @@ class HomePaneTest {
         }
 
         composeTestRule.onNodeWithTag("parser-input").performTextInput("test input")
-        assertEquals("test input", inputValue)
+        assertEquals("test input", inputValue.value)
 
         composeTestRule.onNodeWithTag("classify-button").performClick()
         assertEquals(true, submitCalled)
