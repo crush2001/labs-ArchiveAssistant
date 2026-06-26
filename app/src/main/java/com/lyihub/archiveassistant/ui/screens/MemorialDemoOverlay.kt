@@ -501,6 +501,8 @@ private class FoldScrollNativeView(context: Context) : View(context) {
     private var coverFinalStamp: MemorialStamp? = null
     private var coverFinalStampStrength = 0f
     private var coverFinalStampFromButton = false
+    private var attachedCoverStamp: MemorialStamp? = null
+    private var attachedCoverStampStrength = 0f
     private var summaryAlpha = 0f
     private var summaryAnimator: ValueAnimator? = null
     private var completedAlpha = 0f
@@ -573,6 +575,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         foldScrollX = 0f
         openProgress = 0f
         completedAlpha = 0f
+        clearAttachedCoverStamp()
         coverStackAnimator?.cancel()
         coverStackAnimator = null
         summaryAnimator?.cancel()
@@ -959,7 +962,11 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         val cover = articles.firstOrNull() ?: return
         val coverLeft = coverStackLeft(cover)
         drawCoverStackLayer(canvas, coverStackAlpha())
-        val rotation = (coverDragX / max(1f, foldRight - foldLeft)).coerceIn(-1f, 1f) * 10f
+        val rotation = if (coverFinalStampFromButton) {
+            0f
+        } else {
+            (coverDragX / max(1f, foldRight - foldLeft)).coerceIn(-1f, 1f) * 10f
+        }
         val isRevealingNextCover = currentStamp == null &&
             coverFinalStamp == null &&
             coverDragX == 0f &&
@@ -2006,6 +2013,9 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         drawPaperAging(canvas, articleRect, article.pageIndex)
         drawArticleSurface(canvas, articleRect)
         drawPageContent(canvas, article, articleRect)
+        if (article.page.type == MemorialPageType.Cover && coverSequenceIndex == coverStackIndex) {
+            drawAttachedCoverStamp(canvas, articleRect)
+        }
         drawRotationalVolumeShadow(
             canvas = canvas,
             rect = articleRect,
@@ -2026,6 +2036,25 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             canvas.drawRect(articleRect, shadePaint)
             shadePaint.alpha = 255
         }
+    }
+
+    private fun drawAttachedCoverStamp(canvas: Canvas, rect: RectF) {
+        val stamp = attachedCoverStamp ?: return
+        val strength = attachedCoverStampStrength.coerceIn(0f, 1f)
+        if (strength <= 0f) return
+        drawRubberStamp(
+            canvas = canvas,
+            stamp = stamp,
+            cx = rect.centerX(),
+            cy = rect.top + rect.height() * 0.64f,
+            strength = strength,
+            preview = true,
+        )
+    }
+
+    private fun clearAttachedCoverStamp() {
+        attachedCoverStamp = null
+        attachedCoverStampStrength = 0f
     }
 
     private fun drawCoverBackground(canvas: Canvas, rect: RectF, coverSequenceIndex: Int) {
@@ -2966,6 +2995,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                     coverFinalStamp = null
                     coverFinalStampFromButton = false
                     coverFinalStampStrength = 0f
+                    clearAttachedCoverStamp()
                     invalidate()
                 }
             })
@@ -2986,6 +3016,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         coverFinalStamp = null
         coverFinalStampFromButton = false
         coverFinalStampStrength = 0f
+        clearAttachedCoverStamp()
         hideSummary(animated = false)
         summaryPinnedByTap = false
         summaryPinnedAtDown = false
@@ -3037,6 +3068,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
             coverFinalStamp = null
             coverFinalStampFromButton = false
             coverFinalStampStrength = 0f
+            clearAttachedCoverStamp()
             currentStamp = null
             stampProgress = 0f
             openProgress = 0f
@@ -3111,19 +3143,9 @@ private class FoldScrollNativeView(context: Context) : View(context) {
         when (stamp) {
             MemorialStamp.Like,
             MemorialStamp.Dislike -> returnToCoverForVerdict {
-                val dx = if (stamp == MemorialStamp.Like) dp(96f) else -dp(96f)
-                coverDragX = 0f
-                coverDragY = 0f
-                coverPreviewStamp = stamp
-                coverPreviewStampStrength = 1f
-                coverPreviewStampTargetStrength = 1f
-                startCoverVerdict(
-                    stamp = stamp,
-                    dx = dx,
-                    verticalDirection = 0f,
-                    fromButton = true,
-                    motion = CoverVerdictMotion.Gesture,
-                )
+                startAttachedCoverStamp(stamp) {
+                    collapseStampedCoverForVerdict(stamp)
+                }
             }
             else -> returnToFirstSpread {
                 startStamp(stamp, StampCompletion.ResetCover)
@@ -3133,15 +3155,119 @@ private class FoldScrollNativeView(context: Context) : View(context) {
 
     private fun returnToCoverForVerdict(onFinished: () -> Unit) {
         hideReadingControlsDuringClose = true
-        closeWithAnimation {
-            stage = MemorialStage.CoverOnly
-            openProgress = 0f
+        scroller.abortAnimation()
+        isDragging = false
+        returnToFirstSpread {
             foldScrollX = 0f
-            currentStamp = null
-            stampProgress = 0f
-            hideReadingControlsDuringClose = false
             invalidate()
             onFinished()
+        }
+    }
+
+    private fun startAttachedCoverStamp(stamp: MemorialStamp, onFinished: () -> Unit) {
+        stampAnimator?.cancel()
+        attachedCoverStamp = stamp
+        attachedCoverStampStrength = 0f
+        stampAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 420L
+            interpolator = PathInterpolator(0.16f, 0f, 0f, 1f)
+            addUpdateListener { animator ->
+                attachedCoverStampStrength = animator.animatedValue as Float
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                private var canceled = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    canceled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    if (stampAnimator == animation) {
+                        stampAnimator = null
+                    }
+                    if (!canceled) {
+                        attachedCoverStampStrength = 1f
+                        invalidate()
+                        onFinished()
+                    }
+                }
+            })
+            start()
+        }
+    }
+
+    private fun collapseStampedCoverForVerdict(stamp: MemorialStamp) {
+        stage = MemorialStage.Closing
+        animateOpenProgress(
+            from = openProgress.coerceIn(0f, 1f),
+            to = 0f,
+            durationMs = MEMORIAL_OPEN_CLOSE_DURATION_MS,
+            onFinished = {
+                stage = MemorialStage.CoverOnly
+                openProgress = 0f
+                foldScrollX = 0f
+                currentStamp = null
+                stampProgress = 0f
+                hideReadingControlsDuringClose = false
+                clearAttachedCoverStamp()
+                startStampedCoverExit(stamp)
+            },
+        )
+    }
+
+    private fun startStampedCoverExit(stamp: MemorialStamp) {
+        val targetX = when (stamp) {
+            MemorialStamp.Like -> width.toFloat() + articleWidth
+            MemorialStamp.Dislike -> -width.toFloat() - articleWidth
+            else -> 0f
+        }
+        coverSwipeAnimator?.cancel()
+        coverDragX = 0f
+        coverDragY = 0f
+        coverPreviewStamp = stamp
+        coverPreviewStampStrength = 1f
+        coverPreviewStampTargetStrength = 1f
+        coverFinalStamp = stamp
+        coverFinalStampFromButton = true
+        coverFinalStampStrength = 1f
+        coverStackLiftProgress = 0f
+        coverSwipeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = COVER_VERDICT_DURATION_MS
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                val moveT = smoothStep(0f, 1f, animator.animatedValue as Float)
+                coverDragX = lerp(0f, targetX, moveT)
+                coverDragY = 0f
+                coverFinalStampStrength = 1f
+                coverPreviewStampStrength = 1f
+                coverPreviewStampTargetStrength = 1f
+                coverStackLiftProgress = 0f
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                private var canceled = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    canceled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    if (coverSwipeAnimator == animation) {
+                        coverSwipeAnimator = null
+                    }
+                    if (!canceled) {
+                        coverFinalStamp = null
+                        coverFinalStampFromButton = false
+                        coverFinalStampStrength = 0f
+                        coverPreviewStamp = null
+                        coverPreviewStampStrength = 0f
+                        coverPreviewStampTargetStrength = 0f
+                        advanceAfterVerdict()
+                    }
+                }
+            })
+            start()
         }
     }
 
@@ -3227,6 +3353,7 @@ private class FoldScrollNativeView(context: Context) : View(context) {
                 coverFinalStamp = null
                 coverFinalStampFromButton = false
                 coverFinalStampStrength = 0f
+                clearAttachedCoverStamp()
                 invalidate()
             }
         }
