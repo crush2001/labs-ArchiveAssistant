@@ -802,13 +802,13 @@ private fun MinistryHeaderRow(
                     .padding(horizontal = 14.dp),
             ) {
                 Text(
-                    text = "尚书六部",
+                    text = "尚书省",
                     style = MaterialTheme.typography.titleLarge,
                     color = PalaceGold,
                     fontWeight = FontWeight.Normal,
                 )
                 Text(
-                    text = "六个固定文件夹 · 点击右侧即阅",
+                    text = "六个固定文件夹 · 新建与管理",
                     style = MaterialTheme.typography.bodySmall,
                     color = ImperialUmber.copy(alpha = 0.62f),
                 )
@@ -897,7 +897,7 @@ private fun MinistryTicketCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = visual.title,
+                        text = folder.title,
                         style = titleStyle,
                         color = PalaceInk,
                         fontWeight = FontWeight.Normal,
@@ -913,7 +913,7 @@ private fun MinistryTicketCard(
                     )
                 }
                 Text(
-                    text = folder.title,
+                    text = visual.description,
                     style = summaryStyle,
                     color = PalaceInk.copy(alpha = 0.84f),
                     fontWeight = FontWeight.SemiBold,
@@ -921,7 +921,7 @@ private fun MinistryTicketCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = visual.description,
+                    text = visual.duty,
                     style = MaterialTheme.typography.bodySmall,
                     color = PalaceInk.copy(alpha = 0.62f),
                     maxLines = 1,

@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +54,7 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.random.Random
 
 private const val MemorialCoverAspect = 1f / 2f
 private const val MemorialWheelItemCount = 24
@@ -60,6 +62,7 @@ private const val MemorialActiveSlotDegrees = 240f
 private const val MemorialWheelDragDegreesPerPixel = -0.18f
 private const val MemorialWheelActiveScale = 1.58f
 private const val MemorialWheelFocusHalfRangeDegrees = 24f
+private const val MemorialWheelCoverSeed = 20260627
 
 @Composable
 fun MemorialBriefingPane(
@@ -117,11 +120,19 @@ private fun MemorialCoverWheel(
 ) {
     var wheelRotation by remember { mutableFloatStateOf(0f) }
     val stepDegrees = 360f / MemorialWheelItemCount
+    val shuffledCoverResources = remember(coverResources) {
+        buildWheelCoverSequence(
+            coverResources = coverResources,
+            itemCount = MemorialWheelItemCount,
+            seed = MemorialWheelCoverSeed,
+        )
+    }
+    if (shuffledCoverResources.isEmpty()) return
     val animatedWheelRotation by animateFloatAsState(
         targetValue = wheelRotation,
         animationSpec = spring(
-            dampingRatio = 0.74f,
-            stiffness = 260f,
+            dampingRatio = 0.82f,
+            stiffness = 420f,
         ),
         label = "memorialWheelRotation",
     )
@@ -160,28 +171,31 @@ private fun MemorialCoverWheel(
             expanded = expanded,
             modifier = Modifier.fillMaxSize(),
         )
-        val wheelItems = remember(startDegrees, stepDegrees) {
+        val wheelItems = remember(startDegrees) {
             List(MemorialWheelItemCount) { index ->
                 val degrees = startDegrees + index * stepDegrees
                 WheelItemPlacement(
                     index = index,
                     degrees = degrees,
+                    resId = shuffledCoverResources[index],
                     focus = wheelItemFocus(degrees),
                 )
             }.sortedBy { it.focus }
         }
         wheelItems.forEach { item ->
-            MemorialWheelCover(
-                resId = coverResources[item.index % coverResources.size],
-                index = item.index,
-                degrees = item.degrees,
-                centerX = centerX,
-                centerY = centerY,
-                radius = radius,
-                width = cardWidth,
-                focus = item.focus,
-                modifier = Modifier.fillMaxSize(),
-            )
+            key(item.index) {
+                MemorialWheelCover(
+                    resId = item.resId,
+                    index = item.index,
+                    degrees = item.degrees,
+                    centerX = centerX,
+                    centerY = centerY,
+                    radius = radius,
+                    width = cardWidth,
+                    focus = item.focus,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -189,8 +203,30 @@ private fun MemorialCoverWheel(
 private data class WheelItemPlacement(
     val index: Int,
     val degrees: Float,
+    val resId: Int,
     val focus: Float,
 )
+
+private fun buildWheelCoverSequence(
+    coverResources: List<Int>,
+    itemCount: Int,
+    seed: Int,
+): List<Int> {
+    if (coverResources.isEmpty()) return emptyList()
+    val random = Random(seed)
+    val pool = coverResources.shuffled(random).toMutableList()
+    val sequence = mutableListOf<Int>()
+    repeat(itemCount) {
+        if (pool.isEmpty()) {
+            pool += coverResources.shuffled(random)
+        }
+        val candidateIndex = pool.indexOfFirst { candidate ->
+            sequence.takeLast(3).none { recent -> recent == candidate }
+        }.takeIf { it >= 0 } ?: 0
+        sequence += pool.removeAt(candidateIndex)
+    }
+    return sequence
+}
 
 private fun wheelItemFocus(degrees: Float): Float {
     val distance = angularDistanceDegrees(degrees, MemorialActiveSlotDegrees)
@@ -265,18 +301,11 @@ private fun MemorialWheelCover(
     modifier: Modifier = Modifier,
 ) {
     val active = focus > 0.52f
-    val scaledWidth = width * (1f + (MemorialWheelActiveScale - 1f) * focus)
-    val animatedBorderAlpha by animateFloatAsState(
-        targetValue = 0.46f + 0.24f * focus,
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = 360f,
-        ),
-        label = "memorialCoverBorderAlpha",
-    )
+    val coverScale = 1f + (MemorialWheelActiveScale - 1f) * focus
+    val borderAlpha = 0.46f + 0.24f * focus
     val radians = Math.toRadians(degrees.toDouble())
-    val height = scaledWidth / MemorialCoverAspect
-    val x = centerX + radius * cos(radians).toFloat() - scaledWidth / 2f
+    val height = width / MemorialCoverAspect
+    val x = centerX + radius * cos(radians).toFloat() - width / 2f
     val y = centerY + radius * sin(radians).toFloat() - height * 0.75f
     Box(
         modifier = modifier,
@@ -284,19 +313,21 @@ private fun MemorialWheelCover(
         Box(
             modifier = Modifier
                 .offset(x = x, y = y)
-                .width(scaledWidth)
+                .width(width)
                 .aspectRatio(MemorialCoverAspect)
                 .graphicsLayer(
                     rotationZ = degrees + 90f,
                     transformOrigin = TransformOrigin(0.5f, 0.75f),
+                    scaleX = coverScale,
+                    scaleY = coverScale,
                 )
                 .background(ImperialParchment, RoundedCornerShape(if (active) 5.dp else 3.dp))
                 .border(
                     width = if (active) 1.4.dp else 0.8.dp,
                     color = if (active) {
-                        ImperialCinnabar.copy(alpha = animatedBorderAlpha)
+                        ImperialCinnabar.copy(alpha = borderAlpha)
                     } else {
-                        ImperialBronze.copy(alpha = animatedBorderAlpha)
+                        ImperialBronze.copy(alpha = borderAlpha)
                     },
                     shape = RoundedCornerShape(if (active) 5.dp else 3.dp),
                 ),
