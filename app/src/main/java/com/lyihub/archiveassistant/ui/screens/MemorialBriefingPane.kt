@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,10 +16,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -27,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,11 +48,12 @@ import com.lyihub.archiveassistant.ui.theme.ImperialParchment
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private const val MemorialCoverAspect = 10f / 22f
 private const val MemorialWheelItemCount = 24
-private const val MemorialActiveIndex = 0
+private const val MemorialActiveSlotDegrees = 225f
 
 @Composable
 fun MemorialBriefingPane(
@@ -91,7 +99,7 @@ fun MemorialBriefingPane(
             expanded = expanded,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(if (expanded) 30.dp else 20.dp),
+                .padding(start = if (expanded) 30.dp else 20.dp, top = if (expanded) 28.dp else 18.dp),
         )
         RingCenterHint(
             modifier = Modifier
@@ -106,18 +114,36 @@ private fun MemorialCoverWheel(
     coverResources: List<Int>,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = modifier) {
+    var wheelRotation by remember { mutableFloatStateOf(0f) }
+    BoxWithConstraints(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    wheelRotation = (wheelRotation + dragAmount.y * 0.16f) % 360f
+                }
+            },
+    ) {
         val expanded = maxWidth >= 620.dp
         val panelMin = min(maxWidth.value, maxHeight.value).dp
-        val radius = panelMin * if (expanded) 1.12f else 1.06f
-        val centerX = maxWidth * if (expanded) 1.28f else 1.22f
-        val centerY = maxHeight * if (expanded) 0.98f else 0.94f
-        val cardWidth = if (expanded) 62.dp else 48.dp
-        val startDegrees = 225f
+        val radius = panelMin * if (expanded) 0.74f else 0.7f
+        val innerRadius = radius * 0.63f
+        val centerX = maxWidth + panelMin * if (expanded) 0.08f else 0.06f
+        val centerY = maxHeight * 0.5f
+        val cardWidth = if (expanded) 76.dp else 58.dp
+        val startDegrees = MemorialActiveSlotDegrees + wheelRotation
         val stepDegrees = 360f / MemorialWheelItemCount
+        val activeIndex = activeWheelIndex(wheelRotation, stepDegrees)
 
+        MemorialWheelInnerDisc(
+            centerX = centerX,
+            centerY = centerY,
+            radius = innerRadius,
+            expanded = expanded,
+            modifier = Modifier.fillMaxSize(),
+        )
         repeat(MemorialWheelItemCount) { index ->
-            if (index == MemorialActiveIndex) return@repeat
+            if (index == activeIndex) return@repeat
             val degrees = startDegrees + index * stepDegrees
             MemorialWheelCover(
                 resId = coverResources[index % coverResources.size],
@@ -132,16 +158,78 @@ private fun MemorialCoverWheel(
             )
         }
         MemorialWheelCover(
-            resId = coverResources[MemorialActiveIndex % coverResources.size],
-            index = MemorialActiveIndex,
-            degrees = startDegrees + MemorialActiveIndex * stepDegrees,
+            resId = coverResources[activeIndex % coverResources.size],
+            index = activeIndex,
+            degrees = startDegrees + activeIndex * stepDegrees,
             centerX = centerX,
             centerY = centerY,
             radius = radius,
-            width = cardWidth * 1.28f,
+            width = cardWidth * 1.34f,
             active = true,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+private fun activeWheelIndex(rotationDegrees: Float, stepDegrees: Float): Int {
+    val normalized = ((rotationDegrees % 360f) + 360f) % 360f
+    val raw = (-normalized / stepDegrees).roundToInt()
+    return ((raw % MemorialWheelItemCount) + MemorialWheelItemCount) % MemorialWheelItemCount
+}
+
+@Composable
+private fun MemorialWheelInnerDisc(
+    centerX: Dp,
+    centerY: Dp,
+    radius: Dp,
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val diameter = radius * 2f
+    val iconSize = if (expanded) 64.dp else 48.dp
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .offset(x = centerX - radius, y = centerY - radius)
+                .size(diameter)
+                .background(ImperialParchment.copy(alpha = 0.42f), CircleShape)
+                .border(1.dp, ImperialBronze.copy(alpha = 0.22f), CircleShape),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(diameter * 0.66f)
+                    .border(1.dp, ImperialBronze.copy(alpha = 0.18f), CircleShape),
+            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = radius * 0.22f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.dashboard_placeholder),
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize),
+                    alpha = 0.42f,
+                    colorFilter = ColorFilter.tint(ImperialUmber),
+                )
+                Text(
+                    text = "轻触阅读",
+                    style = if (expanded) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge,
+                    color = ImperialUmber.copy(alpha = 0.62f),
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "上下拨动奏章轮",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ImperialUmber.copy(alpha = 0.48f),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }
 
@@ -326,7 +414,7 @@ private fun BriefingCopy(
             text = "今日尚有 $pendingCount 封待批。轻触此页，展开奏章堆叠，准、驳、留中皆可一笔批下。",
             style = MaterialTheme.typography.bodyMedium,
             color = ImperialUmber.copy(alpha = 0.72f),
-            modifier = Modifier.fillMaxWidth(if (expanded) 0.44f else 0.62f),
+            modifier = Modifier.fillMaxWidth(if (expanded) 0.38f else 0.56f),
         )
     }
 }
