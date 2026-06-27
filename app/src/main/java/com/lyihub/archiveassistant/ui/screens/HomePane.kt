@@ -1,7 +1,6 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,29 +18,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
@@ -51,12 +41,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lyihub.archiveassistant.R
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
-import com.lyihub.archiveassistant.ui.components.TextActionButton
 import com.lyihub.archiveassistant.ui.components.PaneContainer
 import com.lyihub.archiveassistant.ui.components.PaneDivider
 import com.lyihub.archiveassistant.ui.components.PaneHeader
@@ -68,8 +56,7 @@ private val PalaceGold = Color(0xFFD6A43A)
 private val PalaceGoldBlock = Color(0xFFE0B13C)
 private val PalaceInk = Color(0xFF20352D)
 private val PalacePaper = Color(0xFFFFF7E1)
-private val PalaceLine = Color(0xFF628E62)
-private val PalaceGridShape = RoundedCornerShape(6.dp)
+private val PalaceGridLine = Color(0xFF5E8A5E)
 
 private val DashboardFallbackTitles = listOf(
     "大模型架构研究",
@@ -110,6 +97,10 @@ fun HomePane(
     smartSummarizationMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
+    val totalItems = itemsByTopic.values.sumOf { it.size }
+    val pendingCount = pendingCount(recentTopics, itemsByTopic)
+    val folders = dashboardFolders(recentTopics, itemsByTopic)
+
     PaneContainer(modifier = modifier.testTag("home-pane")) {
         PaneHeader(
             title = title,
@@ -128,11 +119,6 @@ fun HomePane(
                     )
                 }
             },
-            actions = {
-                if (onOpenMemorialDemo != null) {
-                    MemorialDemoButton(onClick = onOpenMemorialDemo)
-                }
-            },
         )
         PaneDivider()
         BoxWithConstraints(
@@ -141,87 +127,55 @@ fun HomePane(
                 .weight(1f)
                 .background(PalaceGreenDeep),
         ) {
-            val expandedDashboard = maxWidth >= 720.dp
-            val contentPadding = if (expandedDashboard) {
-                PaddingValues(horizontal = 20.dp, vertical = 16.dp)
-            } else {
-                PaddingValues(horizontal = 14.dp, vertical = 14.dp)
-            }
+            val expanded = maxWidth >= 720.dp
+            val outerPadding = if (expanded) 18.dp else 12.dp
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = contentPadding,
-                verticalArrangement = Arrangement.spacedBy(if (expandedDashboard) 12.dp else 10.dp),
+                contentPadding = PaddingValues(outerPadding),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
-                if (expandedDashboard) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(0.92f),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                PalaceHero(
-                                    totalItems = itemsByTopic.values.sumOf { it.size },
-                                    pendingCount = pendingCount(recentTopics, itemsByTopic),
-                                    isSmartSummarizing = isSmartSummarizing,
-                                )
-                                WorkflowStrip()
-                            }
-                            QuickActionGrid(
+                item {
+                    MosaicFrame {
+                        if (expanded) {
+                            ExpandedMosaic(
+                                totalItems = totalItems,
+                                pendingCount = pendingCount,
+                                folders = folders,
                                 parserInput = parserInput,
                                 validationMessage = parserValidationMessage,
                                 smartSummarizationMessage = smartSummarizationMessage,
+                                searchQuery = searchQuery,
+                                isSmartSummarizing = isSmartSummarizing,
                                 onInputChanged = onParserInputChanged,
                                 onSubmit = onSubmitParserInput,
                                 onOpenClipboard = onOpenClipboard,
                                 onOpenMemorialDemo = onOpenMemorialDemo,
-                                searchQuery = searchQuery,
                                 onSearchQueryChanged = onSearchQueryChanged,
+                                onTopicSelected = onTopicSelected,
+                                onOpenManage = onOpenManage,
+                                onCreateTopic = onCreateTopic,
+                            )
+                        } else {
+                            CompactMosaic(
+                                totalItems = totalItems,
+                                pendingCount = pendingCount,
+                                folders = folders,
+                                parserInput = parserInput,
+                                validationMessage = parserValidationMessage,
+                                smartSummarizationMessage = smartSummarizationMessage,
+                                searchQuery = searchQuery,
                                 isSmartSummarizing = isSmartSummarizing,
-                                expandedDashboard = true,
-                                modifier = Modifier.weight(1.08f),
+                                onInputChanged = onParserInputChanged,
+                                onSubmit = onSubmitParserInput,
+                                onOpenClipboard = onOpenClipboard,
+                                onOpenMemorialDemo = onOpenMemorialDemo,
+                                onSearchQueryChanged = onSearchQueryChanged,
+                                onTopicSelected = onTopicSelected,
+                                onOpenManage = onOpenManage,
+                                onCreateTopic = onCreateTopic,
                             )
                         }
                     }
-                } else {
-                    item {
-                        PalaceHero(
-                            totalItems = itemsByTopic.values.sumOf { it.size },
-                            pendingCount = pendingCount(recentTopics, itemsByTopic),
-                            isSmartSummarizing = isSmartSummarizing,
-                        )
-                    }
-                    item {
-                        QuickActionGrid(
-                            parserInput = parserInput,
-                            validationMessage = parserValidationMessage,
-                            smartSummarizationMessage = smartSummarizationMessage,
-                            onInputChanged = onParserInputChanged,
-                            onSubmit = onSubmitParserInput,
-                            onOpenClipboard = onOpenClipboard,
-                            onOpenMemorialDemo = onOpenMemorialDemo,
-                            searchQuery = searchQuery,
-                            onSearchQueryChanged = onSearchQueryChanged,
-                            isSmartSummarizing = isSmartSummarizing,
-                            expandedDashboard = false,
-                        )
-                    }
-                    item {
-                        WorkflowStrip()
-                    }
-                }
-                item {
-                    TopicGrid(
-                        topics = recentTopics,
-                        itemsByTopic = itemsByTopic,
-                        searchQuery = searchQuery,
-                        onTopicSelected = onTopicSelected,
-                        onCreateTopic = onCreateTopic,
-                        onOpenManage = onOpenManage,
-                        expandedDashboard = expandedDashboard,
-                    )
                 }
             }
         }
@@ -229,108 +183,452 @@ fun HomePane(
 }
 
 @Composable
-private fun PalaceHero(
+private fun MosaicFrame(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PalaceGridLine)
+            .border(1.dp, PalaceGridLine),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun ExpandedMosaic(
+    totalItems: Int,
+    pendingCount: Int,
+    folders: List<DashboardFolder>,
+    parserInput: String,
+    validationMessage: String?,
+    smartSummarizationMessage: String?,
+    searchQuery: String,
+    isSmartSummarizing: Boolean,
+    onInputChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onOpenClipboard: () -> Unit,
+    onOpenMemorialDemo: (() -> Unit)?,
+    onSearchQueryChanged: (String) -> Unit,
+    onTopicSelected: (String) -> Unit,
+    onOpenManage: () -> Unit,
+    onCreateTopic: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        HeroCell(
+            totalItems = totalItems,
+            pendingCount = pendingCount,
+            isSmartSummarizing = isSmartSummarizing,
+            modifier = Modifier.weight(2f),
+        )
+        PalaceActionCell(
+            title = "宣拾遗",
+            subtitle = "重新读取剪切板",
+            label = "中书",
+            color = PalaceGoldBlock,
+            contentColor = PalaceGreenDark,
+            modifier = Modifier.weight(1f),
+            onClick = onOpenClipboard,
+            testTag = "clipboard-button",
+        )
+        PalaceActionCell(
+            title = if (isSmartSummarizing) "拟录中" else "中书拟题",
+            subtitle = "摘要、归类、拟入档",
+            label = "拟录",
+            color = PalaceGreen,
+            contentColor = PalaceGold,
+            modifier = Modifier.weight(1f),
+            enabled = !isSmartSummarizing && parserInput.isNotBlank(),
+            onClick = onSubmit,
+            testTag = "classify-button",
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        SearchCell(
+            searchQuery = searchQuery,
+            onSearchQueryChanged = onSearchQueryChanged,
+            parserInput = parserInput,
+            validationMessage = validationMessage,
+            smartSummarizationMessage = smartSummarizationMessage,
+            onInputChanged = onInputChanged,
+            modifier = Modifier.weight(2f),
+        )
+        MemorialCell(
+            pendingCount = pendingCount,
+            onClick = onOpenMemorialDemo,
+            modifier = Modifier.weight(2f),
+        )
+    }
+    WorkflowRow()
+    FolderHeaderRow(
+        onCreateTopic = onCreateTopic,
+        onOpenManage = onOpenManage,
+    )
+    folders.chunked(3).forEach { row ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            row.forEach { folder ->
+                FolderCell(
+                    folder = folder,
+                    onTopicSelected = onTopicSelected,
+                    modifier = Modifier.weight(1f),
+                    compact = false,
+                )
+            }
+            repeat(3 - row.size) {
+                Spacer(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(128.dp)
+                        .background(PalaceGreen),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactMosaic(
+    totalItems: Int,
+    pendingCount: Int,
+    folders: List<DashboardFolder>,
+    parserInput: String,
+    validationMessage: String?,
+    smartSummarizationMessage: String?,
+    searchQuery: String,
+    isSmartSummarizing: Boolean,
+    onInputChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onOpenClipboard: () -> Unit,
+    onOpenMemorialDemo: (() -> Unit)?,
+    onSearchQueryChanged: (String) -> Unit,
+    onTopicSelected: (String) -> Unit,
+    onOpenManage: () -> Unit,
+    onCreateTopic: () -> Unit,
+) {
+    HeroCell(
+        totalItems = totalItems,
+        pendingCount = pendingCount,
+        isSmartSummarizing = isSmartSummarizing,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        PalaceActionCell(
+            title = "宣拾遗",
+            subtitle = "读取剪切板",
+            label = "中书",
+            color = PalaceGoldBlock,
+            contentColor = PalaceGreenDark,
+            modifier = Modifier.weight(1f),
+            onClick = onOpenClipboard,
+            testTag = "clipboard-button",
+        )
+        PalaceActionCell(
+            title = if (isSmartSummarizing) "拟录中" else "中书拟题",
+            subtitle = "摘要归类",
+            label = "拟录",
+            color = PalaceGreen,
+            contentColor = PalaceGold,
+            modifier = Modifier.weight(1f),
+            enabled = !isSmartSummarizing && parserInput.isNotBlank(),
+            onClick = onSubmit,
+            testTag = "classify-button",
+        )
+    }
+    SearchCell(
+        searchQuery = searchQuery,
+        onSearchQueryChanged = onSearchQueryChanged,
+        parserInput = parserInput,
+        validationMessage = validationMessage,
+        smartSummarizationMessage = smartSummarizationMessage,
+        onInputChanged = onInputChanged,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    MemorialCell(
+        pendingCount = pendingCount,
+        onClick = onOpenMemorialDemo,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    WorkflowRow()
+    FolderHeaderRow(
+        onCreateTopic = onCreateTopic,
+        onOpenManage = onOpenManage,
+    )
+    folders.chunked(2).forEach { row ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            row.forEach { folder ->
+                FolderCell(
+                    folder = folder,
+                    onTopicSelected = onTopicSelected,
+                    modifier = Modifier.weight(1f),
+                    compact = true,
+                )
+            }
+            if (row.size == 1) {
+                Spacer(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(132.dp)
+                        .background(PalaceGreen),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroCell(
     totalItems: Int,
     pendingCount: Int,
     isSmartSummarizing: Boolean,
+    modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = PalaceGridShape,
+    MosaicCell(
+        modifier = modifier.height(154.dp),
         color = PalaceGreen,
-        border = BorderStroke(1.dp, PalaceLine.copy(alpha = 0.72f)),
+        contentColor = PalaceGold,
+    ) {
+        DecorativePlaceholder(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(18.dp)
+                .size(86.dp),
+            alpha = 0.22f,
+            tint = PalaceGold,
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(horizontal = 18.dp),
+        ) {
+            Text(
+                text = "朝堂视角",
+                style = MaterialTheme.typography.headlineMedium,
+                color = PalaceGold,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Text(
+                text = "中书录入 · 门下递奏 · 尚书归档",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.78f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                modifier = Modifier.padding(top = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                InlineMetric("宣入", "12")
+                InlineMetric("藏档", totalItems.toString())
+                InlineMetric("待审", pendingCount.toString())
+                InlineMetric("状态", if (isSmartSummarizing) "拟录" else "递奏")
+            }
+        }
+    }
+}
+
+@Composable
+private fun InlineMetric(label: String, value: String) {
+    Column {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            color = PalaceGold,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.66f),
+        )
+    }
+}
+
+@Composable
+private fun PalaceActionCell(
+    title: String,
+    subtitle: String,
+    label: String,
+    color: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    MosaicCell(
+        modifier = modifier
+            .height(154.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+            .testTag(testTag),
+        color = if (enabled) color else Color(0xFF9B9B83),
+        contentColor = contentColor,
+    ) {
+        DecorativePlaceholder(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+                .size(56.dp),
+            alpha = 0.28f,
+            tint = contentColor,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor.copy(alpha = 0.7f),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(14.dp),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(14.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = contentColor,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.76f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchCell(
+    searchQuery: String,
+    onSearchQueryChanged: (String) -> Unit,
+    parserInput: String,
+    validationMessage: String?,
+    smartSummarizationMessage: String?,
+    onInputChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    MosaicCell(
+        modifier = modifier.height(118.dp),
+        color = PalacePaper,
+        contentColor = PalaceInk,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        text = "朝堂视角",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = PalaceGold,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "中书录入 · 门下递奏 · 尚书归档",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.74f),
-                    )
-                }
-                StatusSeal(
-                    label = if (isSmartSummarizing) "拟录中" else "递奏",
-                    value = if (isSmartSummarizing) "中" else "6",
+                Text(
+                    text = "藏经阁",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = PalaceInk,
+                    fontWeight = FontWeight.Black,
+                )
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "搜索",
+                    tint = PalaceInk.copy(alpha = 0.68f),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricBlock(label = "宣入新章", value = "12", modifier = Modifier.weight(1f))
-                MetricBlock(label = "尚书藏档", value = totalItems.toString(), modifier = Modifier.weight(1f))
-                MetricBlock(label = "门下待审", value = pendingCount.toString(), modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusSeal(
-    label: String,
-    value: String,
-) {
-    Surface(
-        shape = PalaceGridShape,
-        color = PalaceGold,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = PalaceGreenDark,
-                fontWeight = FontWeight.Black,
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChanged,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = PalaceInk),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home-search-input"),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.54f))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        if (searchQuery.isBlank()) {
+                            Text(
+                                text = "查找主题或资料...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PalaceInk.copy(alpha = 0.44f),
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = PalaceGreenDark,
-                fontWeight = FontWeight.SemiBold,
+            HiddenParserInput(
+                input = parserInput,
+                validationMessage = validationMessage,
+                smartSummarizationMessage = smartSummarizationMessage,
+                onInputChanged = onInputChanged,
             )
         }
     }
 }
 
 @Composable
-private fun MetricBlock(
-    label: String,
-    value: String,
+private fun MemorialCell(
+    pendingCount: Int,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = PalaceGridShape,
-        color = PalaceGreenDark.copy(alpha = 0.64f),
-        border = BorderStroke(1.dp, PalaceGold.copy(alpha = 0.28f)),
+    MosaicCell(
+        modifier = modifier
+            .height(118.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .testTag("memorial-entry-card"),
+        color = PalaceGoldBlock,
+        contentColor = PalaceGreenDark,
     ) {
+        DecorativePlaceholder(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 14.dp)
+                .size(82.dp),
+            alpha = 0.24f,
+            tint = PalaceGreenDark,
+        )
         Column(
-            modifier = Modifier.padding(vertical = 9.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(horizontal = 16.dp),
         ) {
             Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = PalaceGold,
-                fontWeight = FontWeight.Bold,
+                text = "门下递奏",
+                style = MaterialTheme.typography.headlineSmall,
+                color = PalaceGreenDark,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
             )
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.72f),
+                text = "今日 $pendingCount 封待批奏章",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PalaceGreenDark.copy(alpha = 0.72f),
                 maxLines = 1,
             )
         }
@@ -338,127 +636,191 @@ private fun MetricBlock(
 }
 
 @Composable
-private fun QuickActionGrid(
-    parserInput: String,
-    validationMessage: String?,
-    smartSummarizationMessage: String?,
-    onInputChanged: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onOpenClipboard: () -> Unit,
-    onOpenMemorialDemo: (() -> Unit)?,
-    searchQuery: String,
-    onSearchQueryChanged: (String) -> Unit,
-    isSmartSummarizing: Boolean,
-    expandedDashboard: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+private fun WorkflowRow() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionTile(
-                title = "宣拾遗",
-                subtitle = "再取剪切板",
-                tone = PalaceGoldBlock,
-                contentColor = PalaceGreenDark,
-                onClick = onOpenClipboard,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("clipboard-button"),
-                height = if (expandedDashboard) 96.dp else null,
-            )
-            ActionTile(
-                title = if (isSmartSummarizing) "拟录中" else "中书拟题",
-                subtitle = "归纳来源与拟归属",
-                tone = Color(0xFF2F8D72),
-                contentColor = Color.White,
-                onClick = onSubmit,
-                enabled = !isSmartSummarizing && parserInput.isNotBlank(),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("classify-button"),
-                height = if (expandedDashboard) 96.dp else null,
-            )
-        }
-        if (onOpenMemorialDemo != null) {
-            ActionTile(
-                title = "门下递奏",
-                subtitle = "批阅今日筛选内容",
-                tone = PalaceGreen,
-                contentColor = PalaceGold,
-                onClick = onOpenMemorialDemo,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("memorial-entry-card"),
-                height = if (expandedDashboard) 96.dp else 92.dp,
-            )
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = PalaceGridShape,
-            color = PalacePaper,
-            border = BorderStroke(1.dp, Color(0xFFE0C383)),
+        WorkflowCell("中书", "拾取、摘要、拟题", Modifier.weight(1f))
+        WorkflowCell("门下", "筛选、递奏、待批", Modifier.weight(1f))
+        WorkflowCell("尚书", "六档归藏", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = Modifier) {
+    MosaicCell(
+        modifier = modifier.height(74.dp),
+        color = PalaceGreen,
+        contentColor = PalaceGold,
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(horizontal = 14.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = "藏经阁",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = PalaceInk,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "检索旧档",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = PalaceInk.copy(alpha = 0.62f),
-                    )
-                }
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChanged,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("home-search-input"),
-                    placeholder = {
-                        Text(
-                            text = "查找主题或资料...",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "搜索",
-                            tint = PalaceInk.copy(alpha = 0.72f),
-                        )
-                    },
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.72f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.72f),
-                        focusedBorderColor = PalaceGold,
-                        unfocusedBorderColor = Color(0xFFD9BF82),
-                    ),
-                )
-                HiddenParserInput(
-                    input = parserInput,
-                    validationMessage = validationMessage,
-                    smartSummarizationMessage = smartSummarizationMessage,
-                    onInputChanged = onInputChanged,
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = PalaceGold,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.68f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
+
+@Composable
+private fun FolderHeaderRow(
+    onCreateTopic: () -> Unit,
+    onOpenManage: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        MosaicCell(
+            modifier = Modifier
+                .weight(2f)
+                .height(66.dp),
+            color = PalaceGreenDark,
+            contentColor = PalaceGold,
+        ) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(horizontal = 14.dp),
+            ) {
+                Text(
+                    text = "尚书档案",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = PalaceGold,
+                    fontWeight = FontWeight.Black,
+                )
+                Text(
+                    text = "六个固定文件夹",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.66f),
+                )
+            }
+        }
+        HeaderActionCell(
+            text = "新建",
+            onClick = onCreateTopic,
+            testTag = "home-create-topic-button",
+            modifier = Modifier.weight(1f),
+        )
+        HeaderActionCell(
+            text = "管理",
+            onClick = onOpenManage,
+            testTag = "manage-button",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun HeaderActionCell(
+    text: String,
+    onClick: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier,
+) {
+    MosaicCell(
+        modifier = modifier
+            .height(66.dp)
+            .clickable(onClick = onClick)
+            .testTag(testTag),
+        color = PalaceGoldBlock,
+        contentColor = PalaceGreenDark,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            color = PalaceGreenDark,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.align(Alignment.Center),
+        )
+    }
+}
+
+@Composable
+private fun FolderCell(
+    folder: DashboardFolder,
+    onTopicSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean,
+) {
+    val cellColor = if (folder.isGoldCell) PalaceGoldBlock else PalaceGreen
+    val textColor = if (folder.isGoldCell) PalaceGreenDark else PalacePaper
+    val accentColor = if (folder.isGoldCell) PalaceGreenDark else PalaceGold
+    MosaicCell(
+        modifier = modifier
+            .height(if (compact) 132.dp else 128.dp)
+            .clickable(enabled = folder.topic != null) { folder.topic?.let { onTopicSelected(it.id) } }
+            .testTag("topic-card-${folder.id}"),
+        color = cellColor,
+        contentColor = textColor,
+    ) {
+        DecorativePlaceholder(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(10.dp)
+                .size(if (compact) 48.dp else 56.dp),
+            alpha = if (folder.isGoldCell) 0.22f else 0.36f,
+            tint = if (folder.isGoldCell) PalaceGreenDark else PalaceGold,
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = folder.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = textColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                text = folder.updatedAtEpochMillis?.let { "${friendlyTime(it)} · ${folder.itemCount} 项" }
+                    ?: "待启用 · 0 项",
+                style = MaterialTheme.typography.bodySmall,
+                color = accentColor.copy(alpha = 0.82f),
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MosaicCell(
+    modifier: Modifier,
+    color: Color,
+    contentColor: Color,
+    content: @Composable BoxScopeWithContentColor.() -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .background(color),
+    ) {
+        BoxScopeWithContentColor(this, contentColor).content()
+    }
+}
+
+private class BoxScopeWithContentColor(
+    private val boxScope: androidx.compose.foundation.layout.BoxScope,
+    val contentColor: Color,
+) : androidx.compose.foundation.layout.BoxScope by boxScope
 
 @Composable
 private fun HiddenParserInput(
@@ -477,266 +839,15 @@ private fun HiddenParserInput(
             .testTag("parser-input"),
         singleLine = true,
     )
-    if (validationMessage != null || smartSummarizationMessage != null) {
+    val message = validationMessage ?: smartSummarizationMessage
+    if (message != null) {
         Text(
-            text = validationMessage ?: smartSummarizationMessage.orEmpty(),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
+            text = message,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFF8B2E24),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun ActionTile(
-    title: String,
-    subtitle: String,
-    tone: Color,
-    contentColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    height: Dp? = null,
-) {
-    val sizeModifier = if (height == null) {
-        Modifier.aspectRatio(1.58f)
-    } else {
-        Modifier.height(height)
-    }
-    Surface(
-        modifier = modifier
-            .then(sizeModifier)
-            .clickable(enabled = enabled, onClick = onClick),
-        shape = PalaceGridShape,
-        color = if (enabled) tone.copy(alpha = 0.92f) else Color(0xFFD9D2C4),
-        border = BorderStroke(1.dp, if (enabled) PalaceLine.copy(alpha = 0.4f) else Color.Transparent),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            DecorativePlaceholder(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(42.dp),
-                alpha = 0.28f,
-                tint = if (contentColor == Color.White) Color.White else PalaceGreen,
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (enabled) contentColor else Color(0xFF7A7164),
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (enabled) contentColor.copy(alpha = 0.78f) else Color(0xFF7A7164),
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WorkflowStrip() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = PalaceGridShape,
-        color = PalaceGreen,
-        border = BorderStroke(1.dp, PalaceLine.copy(alpha = 0.72f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = "今日处理",
-                style = MaterialTheme.typography.titleSmall,
-                color = PalaceGold,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                WorkflowNode("中书", "录入拟题", Modifier.weight(1f))
-                WorkflowNode("门下", "筛选递奏", Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun WorkflowNode(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = PalaceGridShape,
-        color = PalaceGreenDark.copy(alpha = 0.36f),
-        border = BorderStroke(1.dp, PalaceGold.copy(alpha = 0.2f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 9.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = PalaceGold,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.7f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun TopicGrid(
-    topics: List<Topic>,
-    itemsByTopic: Map<String, List<KnowledgeItem>>,
-    searchQuery: String,
-    onTopicSelected: (String) -> Unit,
-    onCreateTopic: () -> Unit,
-    onOpenManage: () -> Unit,
-    expandedDashboard: Boolean,
-) {
-    val folders = dashboardFolders(topics, itemsByTopic)
-    val columnCount = if (expandedDashboard) 3 else 2
-    val cardAspectRatio = if (expandedDashboard) 1.5f else 1.18f
-    Column(modifier = Modifier.testTag("recent-topic-list")) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(
-                    text = "尚书档案",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = PalaceGold,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = "六个固定文件夹",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.68f),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextActionButton(
-                    label = "新建",
-                    onClick = onCreateTopic,
-                    testTag = "home-create-topic-button",
-                    icon = Icons.Default.Add,
-                    contentColor = PalaceGold,
-                )
-                TextActionButton(
-                    label = "管理",
-                    onClick = onOpenManage,
-                    testTag = "manage-button",
-                    icon = Icons.AutoMirrored.Filled.List,
-                    contentColor = PalaceGold,
-                )
-            }
-        }
-        folders.chunked(columnCount).forEach { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                row.forEach { folder ->
-                    TopicCard(
-                        folder = folder,
-                        searchQuery = searchQuery,
-                        onClick = { folder.topic?.let { onTopicSelected(it.id) } },
-                        modifier = Modifier.weight(1f),
-                        aspectRatio = cardAspectRatio,
-                    )
-                }
-                repeat(columnCount - row.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopicCard(
-    folder: DashboardFolder,
-    searchQuery: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    aspectRatio: Float,
-) {
-    val tone = folder.topic?.let { topicColor(it.iconColor) } ?: PalaceGold
-    val cellColor = if (folder.isGoldCell) PalaceGoldBlock else PalaceGreen
-    val textColor = if (folder.isGoldCell) PalaceGreenDark else PalacePaper
-    val accentColor = if (folder.isGoldCell) PalaceGreenDark else PalaceGold
-    Surface(
-        color = cellColor,
-        shape = PalaceGridShape,
-        border = BorderStroke(1.dp, PalaceLine.copy(alpha = 0.58f)),
-        modifier = modifier
-            .aspectRatio(aspectRatio)
-            .clickable(enabled = folder.topic != null, onClick = onClick)
-            .testTag("topic-card-${folder.id}"),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            DecorativePlaceholder(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(52.dp),
-                alpha = if (folder.isGoldCell) 0.26f else 0.42f,
-                tint = if (folder.isGoldCell) PalaceGreen else PalaceGold,
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = if (searchQuery.isBlank()) {
-                        androidx.compose.ui.text.AnnotatedString(folder.title)
-                    } else {
-                        buildHighlightedText(
-                            text = folder.title,
-                            query = searchQuery,
-                            highlightColor = tone,
-                            highlightBgColor = tone.copy(alpha = 0.15f),
-                        )
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = textColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = folder.updatedAtEpochMillis?.let { "${friendlyTime(it)} · ${folder.itemCount} 项" }
-                        ?: "待启用 · 0 项",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = accentColor.copy(alpha = 0.82f),
-                    maxLines = 1,
-                )
-            }
-        }
     }
 }
 
@@ -749,32 +860,11 @@ private fun DecorativePlaceholder(
     Image(
         painter = painterResource(id = R.drawable.dashboard_placeholder),
         contentDescription = null,
-        modifier = modifier.clip(PalaceGridShape),
+        modifier = modifier,
         contentScale = ContentScale.Crop,
         alpha = alpha,
         colorFilter = tint?.let { ColorFilter.tint(it) },
     )
-}
-
-@Composable
-private fun MemorialDemoButton(onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.small)
-            .border(1.dp, PalaceGold.copy(alpha = 0.8f), MaterialTheme.shapes.small)
-            .testTag("memorial-demo-button"),
-        colors = ButtonDefaults.textButtonColors(
-            containerColor = PalaceGreen.copy(alpha = 0.08f),
-            contentColor = PalaceGreen,
-        ),
-    ) {
-        Text(
-            text = "递奏",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
 }
 
 private fun pendingCount(
@@ -801,12 +891,6 @@ private fun dashboardFolders(
     }
 }
 
-private fun topicColor(hex: String): Color = try {
-    Color(android.graphics.Color.parseColor(hex))
-} catch (_: Exception) {
-    PalaceGreen
-}
-
 internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
     val diff = nowMillis - epochMillis
     return when {
@@ -822,8 +906,8 @@ internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTim
 internal fun buildHighlightedText(
     text: String,
     query: String,
-    highlightColor: androidx.compose.ui.graphics.Color,
-    highlightBgColor: androidx.compose.ui.graphics.Color,
+    highlightColor: Color,
+    highlightBgColor: Color,
 ): androidx.compose.ui.text.AnnotatedString {
     val lowerText = text.lowercase()
     val lowerQuery = query.lowercase()
