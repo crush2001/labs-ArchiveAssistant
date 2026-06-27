@@ -182,7 +182,7 @@ private fun MemorialCoverWheel(
                     resId = shuffledCoverResources[index],
                     focus = wheelItemFocus(degrees),
                 )
-            }.sortedBy { it.focus }
+            }
         }
         wheelItems.forEach { item ->
             key(item.index) {
@@ -459,13 +459,7 @@ private fun BriefingCopy(
     ) {
         Text(
             text = "奏章",
-            style = if (expanded) MaterialTheme.typography.displayMedium else MaterialTheme.typography.displaySmall,
-            color = MemorialInk,
-            fontWeight = FontWeight.Normal,
-        )
-        Text(
-            text = "门下既审，呈于御前",
-            style = if (expanded) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+            style = if (expanded) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium,
             color = MemorialInk,
             fontWeight = FontWeight.Normal,
         )

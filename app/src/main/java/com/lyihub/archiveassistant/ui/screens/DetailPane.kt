@@ -110,11 +110,11 @@ private val DetailTabTypes = listOf(
 private val DetailPalaceGreen = ImperialIvory
 private val DetailPalaceGreenMid = ImperialParchment
 private val DetailPalaceGreenDark = ImperialUmber
-private val DetailPalaceGold = ImperialUmber
+private val DetailPalaceGold = Color.Black
 private val DetailPalaceGoldBlock = ImperialLightGold
 private val DetailPaper = ImperialIvory
 private val DetailPaperDeep = ImperialParchment
-private val DetailInk = ImperialUmber
+private val DetailInk = Color.Black
 private val DetailCinnabar = ImperialCinnabar
 private val DetailLine = ImperialBronze
 
@@ -164,13 +164,17 @@ fun DetailPane(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(DetailPalaceGreen, DetailPalaceGreenDark),
-                    ),
-                ),
+                .background(DetailPalaceGreen),
         ) {
-            val expanded = maxWidth >= 720.dp
+            Image(
+                painter = painterResource(id = R.drawable.memorial_xuan_paper),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.28f,
+            )
+            PaperVeil(modifier = Modifier.matchParentSize())
+            val expanded = maxWidth >= 520.dp
             val horizontalPadding = if (expanded) 28.dp else 16.dp
             val maxContentWidth = if (expanded) 980.dp else 560.dp
 
@@ -322,27 +326,21 @@ private fun DetailCourtHeader(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    text = "尚书档案",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = DetailPalaceGold.copy(alpha = 0.78f),
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
                     text = topic.title,
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displayMedium,
                     color = DetailPalaceGold,
                     fontWeight = FontWeight.Normal,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "一篇一折 · 共 $itemCount 篇",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ImperialUmber.copy(alpha = 0.72f),
+                    text = "尚书归档，共 $itemCount 篇。按奏折样式列陈，便于快速浏览、筛选与复查。",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = DetailInk.copy(alpha = 0.78f),
                 )
             }
         }
@@ -423,52 +421,49 @@ private fun MemorialArticleCard(
     modifier: Modifier = Modifier,
 ) {
     val showHighlight = searchQuery.isNotBlank()
-    Column(
+    val cardShape = RoundedCornerShape(8.dp)
+    Box(
         modifier = modifier
-            .background(DetailPaperDeep, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, DetailPalaceGold.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .clip(cardShape)
+            .background(DetailPaperDeep, cardShape)
+            .border(1.dp, DetailPalaceGold.copy(alpha = 0.5f), cardShape)
             .clickable(onClick = onClick)
             .testTag("knowledge-card-${item.id}"),
     ) {
-        visual.imageRes?.let { imageRes ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ImperialIvory)
-                    .padding(10.dp),
-            ) {
-                Image(
-                    painter = painterResource(id = imageRes),
-                    contentDescription = null,
+        Image(
+            painter = painterResource(id = R.drawable.memorial_xuan_paper),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.72f,
+        )
+        PaperVeil(modifier = Modifier.matchParentSize())
+        Column(modifier = Modifier.fillMaxWidth()) {
+            visual.imageRes?.let { imageRes ->
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(visual.aspectRatio),
-                    contentScale = ContentScale.Fit,
-                )
+                        .padding(10.dp),
+                ) {
+                    Image(
+                        painter = painterResource(id = imageRes),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(visual.aspectRatio),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
             }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(DetailPaperDeep)
-                .padding(
-                    start = 16.dp,
-                    top = if (visual.imageRes == null) 18.dp else 10.dp,
-                    end = 16.dp,
-                    bottom = 16.dp,
-                ),
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.memorial_xuan_paper),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.68f,
-            )
-            PaperVeil(modifier = Modifier.matchParentSize())
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 16.dp,
+                        top = if (visual.imageRes == null) 18.dp else 10.dp,
+                        end = 16.dp,
+                        bottom = 16.dp,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Row(
