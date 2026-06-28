@@ -177,6 +177,8 @@ private fun MemorialCoverWheel(
         val wheelCenterX = maxWidth + 58.dp
         val centerY = maxHeight * 0.67f
         val cardWidth = 72.dp
+        val pendingStampHeight = 214.dp
+        val pendingStampWidth = 82.dp
         val startDegrees = MemorialActiveSlotDegrees + animatedWheelRotation
 
         MemorialWheelInnerDisc(
@@ -188,10 +190,9 @@ private fun MemorialCoverWheel(
         PendingVerticalNote(
             pendingCount = pendingCount,
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 24.dp, top = 156.dp, bottom = 24.dp)
-                .width(58.dp)
-                .height(206.dp),
+                .offset(x = 18.dp, y = centerY - pendingStampHeight / 2f)
+                .width(pendingStampWidth)
+                .height(pendingStampHeight),
         )
         val wheelItems = remember(startDegrees) {
             val seamIndex = floorMod(((-startDegrees + 45f) / stepDegrees).roundToInt(), MemorialWheelItemCount)
@@ -229,52 +230,26 @@ private fun PendingVerticalNote(
     pendingCount: Int,
     modifier: Modifier = Modifier,
 ) {
-    val stampShape = RoundedCornerShape(2.dp)
     Box(
-        modifier = modifier
-            .shadow(8.dp, stampShape, clip = false),
+        modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(id = R.drawable.pending_note_stamp),
             contentDescription = null,
             modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.FillHeight,
+            contentScale = ContentScale.FillBounds,
         )
-        Column(
+        Text(
+            text = "待\n批\n·\n$pendingCount\n封\n奏\n章",
+            style = MaterialTheme.typography.titleLarge.copy(fontFamily = ImperialStampFont),
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp,
             modifier = Modifier
                 .align(Alignment.Center)
-                .width(40.dp)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(
-                space = 0.dp,
-                alignment = Alignment.CenterVertically,
-            ),
-        ) {
-            val stampTextStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = ImperialStampFont)
-            Text(
-                text = "待\n批",
-                style = stampTextStyle,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-            )
-            Text(
-                text = "·\n$pendingCount\n·",
-                style = stampTextStyle,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-            )
-            Text(
-                text = "封\n奏\n章",
-                style = stampTextStyle,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp,
-            )
-        }
+                .width(44.dp),
+        )
     }
 }
 

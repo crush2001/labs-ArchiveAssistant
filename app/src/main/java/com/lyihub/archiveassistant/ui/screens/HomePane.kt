@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -55,6 +56,7 @@ import com.lyihub.archiveassistant.R
 import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
+import com.lyihub.archiveassistant.ui.theme.ImperialDisplayFont
 import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
@@ -610,15 +612,33 @@ private fun MinistryStampStack(
                     .padding(start = 16.dp, top = 14.dp, end = 10.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "「尚书省」",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ImperialCinnabar,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                    )
-                }
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(
+                            SpanStyle(
+                                color = ImperialCinnabar,
+                                fontFamily = ImperialDisplayFont,
+                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                            ),
+                        ) {
+                            append("「尚书省」")
+                        }
+                        withStyle(
+                            SpanStyle(
+                                color = Color.Black,
+                                fontFamily = FontFamily.Default,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                            ),
+                        ) {
+                            append(" · 最近主题")
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
                 MinistryHeaderAction(
                     title = "新建",
                     onClick = onCreateTopic,

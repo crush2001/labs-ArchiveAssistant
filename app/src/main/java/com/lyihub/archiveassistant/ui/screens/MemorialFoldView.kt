@@ -224,7 +224,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     private fun drawStageBackground(canvas: Canvas) {
         val rect = RectF(0f, 0f, width.toFloat(), height.toFloat())
-        paints.article.color = STAMP_PAPER
+        paints.article.color = APP_XUAN_PAPER_BASE
         canvas.drawRect(rect, paints.article)
         drawPaperBackground(canvas, rect, rotated = false)
         drawPaperAging(canvas, rect, pageIndex = 0)

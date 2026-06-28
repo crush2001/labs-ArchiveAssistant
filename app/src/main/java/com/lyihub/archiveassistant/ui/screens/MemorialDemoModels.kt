@@ -74,6 +74,7 @@ internal enum class CoverVerdictMotion {
 }
 
 internal val STAMP_RED: Int = AndroidColor.rgb(178, 37, 31)
+internal val APP_XUAN_PAPER_BASE: Int = AndroidColor.rgb(252, 251, 246)
 internal val STAMP_PAPER: Int = AndroidColor.rgb(247, 240, 219)
 internal val IMPERIAL_GOLD: Int = AndroidColor.rgb(166, 126, 45)
 internal val IMPERIAL_GOLD_DARK: Int = AndroidColor.rgb(104, 75, 26)
