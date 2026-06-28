@@ -120,21 +120,8 @@ class ArchiveAssistantStateStoreTest {
 
         assertEquals(AppPane.TOPICS, store.state.selectedPane)
         assertNull(store.state.selectedTopicId)
-        assertEquals(ContentType.ALL, store.state.activeDetailFilter)
         assertFalse(store.state.topics.any { it.id == SampleKnowledgeData.DefaultTopicId })
         assertFalse(store.state.items.any { it.topicId == SampleKnowledgeData.DefaultTopicId })
-    }
-
-    @Test
-    fun filterSelection_updatesVisibleItemsForSelectedTopic() {
-        val store = ArchiveAssistantStateStore()
-        store.openTopic(SampleKnowledgeData.DefaultTopicId)
-
-        store.selectFilter(ContentType.WEB_ARTICLE)
-
-        assertEquals(ContentType.WEB_ARTICLE, store.state.activeDetailFilter)
-        assertTrue(store.state.filteredSelectedTopicItems.isNotEmpty())
-        assertTrue(store.state.filteredSelectedTopicItems.all { it.contentType == ContentType.WEB_ARTICLE })
     }
 
     @Test
@@ -773,33 +760,18 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
-    fun filterSelection_documentPdf_updatesVisibleItemsForSelectedTopic() {
+    fun closeCardModal_preservesSelectedTopic() {
         val store = ArchiveAssistantStateStore()
         store.openTopic(SampleKnowledgeData.DefaultTopicId)
 
-        store.selectFilter(ContentType.DOCUMENT)
-
-        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
-        assertTrue(store.state.filteredSelectedTopicItems.isNotEmpty())
-        assertTrue(store.state.filteredSelectedTopicItems.all { it.contentType == ContentType.DOCUMENT })
-    }
-
-    @Test
-    fun closeCardModal_preservesSelectedFilterAndTopic() {
-        val store = ArchiveAssistantStateStore()
-        store.openTopic(SampleKnowledgeData.DefaultTopicId)
-        store.selectFilter(ContentType.DOCUMENT)
-
-        val itemId = store.state.filteredSelectedTopicItems.first().id
+        val itemId = store.state.visibleSelectedTopicItems.first().id
         store.openCardModal(itemId)
         assertEquals(AppPane.CARD_DETAIL, store.state.selectedPane)
         assertEquals(itemId, store.state.modalItem?.id)
-        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
 
         store.closeCardModal()
         assertEquals(AppPane.DETAIL, store.state.selectedPane)
         assertNull(store.state.modalItem)
-        assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
         assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
     }
 

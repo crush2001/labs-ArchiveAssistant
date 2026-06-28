@@ -10,9 +10,7 @@ import com.lyihub.archiveassistant.ui.theme.ImperialLightGold
 import com.lyihub.archiveassistant.ui.theme.ImperialParchment
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
-internal data class MinistryVisual(
-    val title: String,
-    val duty: String,
+internal data class FolderVisual(
     val description: String,
     @param:DrawableRes val imageRes: Int,
     val background: Color,
@@ -24,50 +22,38 @@ internal data class ArticleVisual(
     val aspectRatio: Float,
 )
 
-internal val MinistryVisuals = listOf(
-    MinistryVisual(
-        title = "吏部",
-        duty = "资料归档",
+internal val FolderVisuals = listOf(
+    FolderVisual(
         description = "近期收藏与重点资料归档",
         imageRes = R.drawable.tsieina_department_li,
         background = ImperialParchment,
         accent = ImperialUmber,
     ),
-    MinistryVisual(
-        title = "户部",
-        duty = "资料归档",
+    FolderVisual(
         description = "按主题收束同类资料",
         imageRes = R.drawable.tsieina_department_hu,
         background = ImperialLightGold,
         accent = ImperialCinnabar,
     ),
-    MinistryVisual(
-        title = "礼部",
-        duty = "资料归档",
+    FolderVisual(
         description = "保留可复查的摘录与来源",
         imageRes = R.drawable.tsieina_department_li2,
         background = ImperialIvory,
         accent = ImperialBronze,
     ),
-    MinistryVisual(
-        title = "兵部",
-        duty = "资料归档",
+    FolderVisual(
         description = "聚合技术、工具与实现线索",
         imageRes = R.drawable.tsieina_department_bing,
         background = ImperialParchment,
         accent = ImperialCinnabar,
     ),
-    MinistryVisual(
-        title = "刑部",
-        duty = "资料归档",
+    FolderVisual(
         description = "沉淀判断、风险与待复核内容",
         imageRes = R.drawable.tsieina_department_xing,
         background = ImperialIvory,
         accent = ImperialUmber,
     ),
-    MinistryVisual(
-        title = "工部",
-        duty = "资料归档",
+    FolderVisual(
         description = "整理产品、设计与制作材料",
         imageRes = R.drawable.tsieina_department_gong,
         background = ImperialLightGold,
@@ -110,7 +96,7 @@ private val ArticleIllustrations = listOf(
     R.drawable.tsieina_article_06,
 )
 
-internal fun ministryVisual(index: Int): MinistryVisual = MinistryVisuals[index % MinistryVisuals.size]
+internal fun folderVisual(index: Int): FolderVisual = FolderVisuals[index % FolderVisuals.size]
 
 internal fun articleVisual(index: Int, hasImage: Boolean): ArticleVisual {
     if (!hasImage) return ArticleVisual(imageRes = null, aspectRatio = 1f)

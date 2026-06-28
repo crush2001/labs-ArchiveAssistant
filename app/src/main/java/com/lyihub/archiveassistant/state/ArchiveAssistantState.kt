@@ -41,7 +41,6 @@ data class ArchiveAssistantState(
     val selectedTopicId: String? = null,
     val topics: List<Topic> = emptyList(),
     val items: List<KnowledgeItem> = emptyList(),
-    val activeDetailFilter: ContentType = ContentType.ALL,
     val parserInput: String = "",
     val parserValidationMessage: String? = null,
     val isSmartSummarizing: Boolean = false,
@@ -81,15 +80,12 @@ data class ArchiveAssistantState(
         ?.let { topicId -> itemsByTopic[topicId].orEmpty() }
         .orEmpty()
 
-    val filteredSelectedTopicItems: List<KnowledgeItem> = when (activeDetailFilter) {
-        ContentType.ALL -> selectedTopicItems
-        else -> selectedTopicItems.filter { it.contentType == activeDetailFilter }
-    }.let { filteredItems ->
+    val visibleSelectedTopicItems: List<KnowledgeItem> = selectedTopicItems.let { topicItems ->
         if (homeSearchQuery.isBlank()) {
-            filteredItems
+            topicItems
         } else {
             val query = homeSearchQuery.lowercase()
-            filteredItems.filter { item ->
+            topicItems.filter { item ->
                 item.title.lowercase().contains(query) ||
                     item.summary.lowercase().contains(query) ||
                     item.fullText.lowercase().contains(query)

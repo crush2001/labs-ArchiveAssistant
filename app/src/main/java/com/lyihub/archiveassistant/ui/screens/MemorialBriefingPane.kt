@@ -79,7 +79,6 @@ fun MemorialBriefingPane(
             .background(ImperialIvory)
             .clickable(onClick = onOpenMemorialDemo),
     ) {
-        val expanded = maxWidth >= 620.dp
         Image(
             painter = painterResource(id = R.drawable.memorial_xuan_paper),
             contentDescription = null,
@@ -108,10 +107,9 @@ fun MemorialBriefingPane(
         )
         BriefingCopy(
             pendingCount = pendingCount,
-            expanded = expanded,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(start = if (expanded) 36.dp else 24.dp, top = if (expanded) 56.dp else 40.dp),
+                .padding(start = 24.dp, top = 40.dp),
         )
     }
 }
@@ -158,20 +156,18 @@ private fun MemorialCoverWheel(
                 )
             },
     ) {
-        val expanded = maxWidth >= 620.dp
         val panelMin = min(maxWidth.value, maxHeight.value).dp
-        val radius = panelMin * if (expanded) 0.68f else 0.66f
+        val radius = panelMin * 0.66f
         val innerRadius = radius * 0.63f
-        val centerX = maxWidth + panelMin * if (expanded) 0.02f else 0.0f
-        val centerY = maxHeight * if (expanded) 0.61f else 0.59f
-        val cardWidth = if (expanded) 94.dp else 72.dp
+        val centerX = maxWidth
+        val centerY = maxHeight * 0.59f
+        val cardWidth = 72.dp
         val startDegrees = MemorialActiveSlotDegrees + animatedWheelRotation
 
         MemorialWheelInnerDisc(
             centerX = centerX,
             centerY = centerY,
             radius = innerRadius,
-            expanded = expanded,
             modifier = Modifier.fillMaxSize(),
         )
         val wheelItems = remember(startDegrees) {
@@ -224,21 +220,14 @@ private fun buildWheelCoverSequence(
     val guard = min(MemorialWheelDuplicateGuard, (uniqueResources.size - 1).coerceAtLeast(0))
     if (guard == 0) return List(itemCount) { coverResources[it % coverResources.size] }
 
-    repeat(160) {
-        val sequence = mutableListOf<Int>()
-        while (sequence.size < itemCount) {
-            val candidate = uniqueResources
-                .shuffled(random)
-                .firstOrNull { resource ->
-                    sequence.takeLast(guard).none { recent -> recent == resource }
-                } ?: uniqueResources.random(random)
-            sequence += candidate
-        }
-        if (isCircularSequenceValid(sequence, guard)) {
-            return sequence
-        }
+    val shuffled = uniqueResources.shuffled(random)
+    val step = coprimeStep(shuffled.size, guard + 1)
+    val sequence = List(itemCount) { index ->
+        shuffled[(index * step) % shuffled.size]
     }
-    return buildGreedyCircularFallback(uniqueResources, itemCount, guard)
+    if (isCircularSequenceValid(sequence, guard)) return sequence
+
+    return buildGreedyCircularFallback(shuffled, itemCount, guard)
 }
 
 private fun buildGreedyCircularFallback(
@@ -270,6 +259,18 @@ private fun buildGreedyCircularFallback(
         sequence[swapIndex] = tmp
     }
     return sequence
+}
+
+private fun coprimeStep(size: Int, preferred: Int): Int {
+    if (size <= 1) return 1
+    for (step in preferred.coerceAtLeast(1) until size) {
+        if (gcd(size, step) == 1) return step
+    }
+    return 1
+}
+
+private tailrec fun gcd(a: Int, b: Int): Int {
+    return if (b == 0) abs(a) else gcd(b, a % b)
 }
 
 private fun canSwapWithoutNearDuplicate(
@@ -326,11 +327,10 @@ private fun MemorialWheelInnerDisc(
     centerX: Dp,
     centerY: Dp,
     radius: Dp,
-    expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val diameter = radius * 2f
-    val iconSize = if (expanded) 72.dp else 56.dp
+    val iconSize = 56.dp
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
@@ -355,14 +355,14 @@ private fun MemorialWheelInnerDisc(
                 )
                 Text(
                     text = "轻触阅读",
-                    style = if (expanded) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MemorialInk,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
                 )
                 Text(
                     text = "上下拨动奏章轮",
-                    style = if (expanded) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MemorialInk.copy(alpha = 0.78f),
                     textAlign = TextAlign.Center,
                 )
@@ -531,24 +531,11 @@ private fun MemorialCoverLabel(
 @Composable
 private fun BriefingCopy(
     pendingCount: Int,
-    expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    PaneHeroHeader(
+        title = "奏章",
+        description = "今日尚有 $pendingCount 封待批。轻触此页，展开奏章堆叠，准、驳、留中皆可一笔批下。",
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 8.dp),
-    ) {
-        Text(
-            text = "奏章",
-            style = if (expanded) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium,
-            color = MemorialInk,
-            fontWeight = FontWeight.Normal,
-        )
-        Text(
-            text = "今日尚有 $pendingCount 封待批。轻触此页，展开奏章堆叠，准、驳、留中皆可一笔批下。",
-            style = if (expanded) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
-            color = MemorialInk.copy(alpha = 0.78f),
-            modifier = Modifier.fillMaxWidth(if (expanded) 0.38f else 0.56f),
-        )
-    }
+    )
 }

@@ -57,13 +57,13 @@ import com.lyihub.archiveassistant.ui.theme.ImperialLightGold
 import com.lyihub.archiveassistant.ui.theme.ImperialParchment
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
-private val PalaceGreen = ImperialParchment
-private val PalaceGreenDeep = ImperialIvory
-private val PalaceGreenDark = ImperialUmber
-private val PalaceGold = ImperialUmber
-private val PalaceGoldBlock = ImperialLightGold
-private val PalaceInk = ImperialUmber
-private val PalacePaper = ImperialIvory
+private val HomePanel = ImperialParchment
+private val HomeBackground = ImperialIvory
+private val HomeDeepInk = ImperialUmber
+private val HomeGold = ImperialUmber
+private val HomeGoldBlock = ImperialLightGold
+private val HomeInk = ImperialUmber
+private val HomePaper = ImperialIvory
 
 private val MinistryTicketShape = GenericShape { size, _ ->
     val cut = size.height * 0.16f
@@ -78,7 +78,7 @@ private val MinistryTicketShape = GenericShape { size, _ ->
     close()
 }
 
-private val DashboardFallbackTitles = listOf(
+private val FolderFallbackTitles = listOf(
     "大模型架构研究",
     "UX/UI 灵感板",
     "阅读剪报",
@@ -119,7 +119,7 @@ fun HomePane(
         modifier = modifier
             .testTag("home-pane")
             .fillMaxSize()
-            .background(PalaceGreenDeep),
+            .background(HomeBackground),
     ) {
         Box(
             modifier = Modifier
@@ -247,8 +247,8 @@ private fun TitleCell(
 ) {
     PlainCell(
         modifier = modifier.fillMaxSize(),
-        color = PalaceGreen,
-        contentColor = PalaceGold,
+        color = HomePanel,
+        contentColor = HomeGold,
     ) {
         IconButton(
             onClick = onOpenSettings,
@@ -260,7 +260,7 @@ private fun TitleCell(
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = "设置",
-                tint = PalaceGold.copy(alpha = 0.86f),
+                tint = HomeGold.copy(alpha = 0.86f),
             )
         }
         Column(
@@ -271,7 +271,7 @@ private fun TitleCell(
             Text(
                 text = appTitle,
                 style = MaterialTheme.typography.displayLarge,
-                color = PalaceGold,
+                color = HomeGold,
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
@@ -365,8 +365,8 @@ private fun PrimaryActionRow(
             title = "宣拾遗",
             subtitle = "读取剪切板",
             label = "中书",
-            color = PalaceGoldBlock,
-            contentColor = PalaceGreenDark,
+            color = HomeGoldBlock,
+            contentColor = HomeDeepInk,
             modifier = Modifier.weight(1f),
             onClick = onOpenClipboard,
             testTag = "clipboard-button",
@@ -389,8 +389,8 @@ private fun SearchCell(
 ) {
     PlainCell(
         modifier = modifier.fillMaxSize(),
-        color = PalacePaper,
-        contentColor = PalaceInk,
+        color = HomePaper,
+        contentColor = HomeInk,
     ) {
         Column(
             modifier = Modifier
@@ -406,20 +406,20 @@ private fun SearchCell(
                 Text(
                     text = "藏经阁",
                     style = MaterialTheme.typography.titleLarge,
-                    color = PalaceInk,
+                    color = HomeInk,
                     fontWeight = FontWeight.Normal,
                 )
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "搜索",
-                    tint = PalaceInk.copy(alpha = 0.68f),
+                    tint = HomeInk.copy(alpha = 0.68f),
                 )
             }
             BasicTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChanged,
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = PalaceInk),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = HomeInk),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("home-search-input"),
@@ -434,7 +434,7 @@ private fun SearchCell(
                             Text(
                                 text = "查找主题或资料...",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = PalaceInk.copy(alpha = 0.44f),
+                                color = HomeInk.copy(alpha = 0.44f),
                             )
                         }
                         innerTextField()
@@ -449,7 +449,7 @@ private fun SearchCell(
                     "正在筛选相关文件夹"
                 },
                 style = MaterialTheme.typography.labelSmall,
-                color = if (message == null) PalaceInk.copy(alpha = 0.58f) else ImperialCinnabar,
+                color = if (message == null) HomeInk.copy(alpha = 0.58f) else ImperialCinnabar,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -468,8 +468,8 @@ private fun MemorialCell(
             .fillMaxSize()
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .testTag("memorial-entry-card"),
-        color = PalaceGoldBlock,
-        contentColor = PalaceGreenDark,
+        color = HomeGoldBlock,
+        contentColor = HomeDeepInk,
     ) {
         DecorativePlaceholder(
             imageRes = R.drawable.imperial_ornament_gourd,
@@ -478,7 +478,7 @@ private fun MemorialCell(
                 .padding(end = 8.dp)
                 .size(60.dp),
             alpha = 0.18f,
-            tint = PalaceGreenDark,
+            tint = HomeDeepInk,
         )
         Column(
             modifier = Modifier
@@ -488,14 +488,14 @@ private fun MemorialCell(
             Text(
                 text = "批奏折",
                 style = MaterialTheme.typography.headlineSmall,
-                color = PalaceGreenDark,
+                color = HomeDeepInk,
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
             Text(
                 text = "今日 $pendingCount 封待批奏章",
                 style = MaterialTheme.typography.bodyMedium,
-                color = PalaceGreenDark.copy(alpha = 0.72f),
+                color = HomeDeepInk.copy(alpha = 0.72f),
                 maxLines = 1,
             )
         }
@@ -517,8 +517,8 @@ private fun WorkflowRow(modifier: Modifier = Modifier) {
 private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = Modifier) {
     PlainCell(
         modifier = modifier.fillMaxSize(),
-        color = PalaceGreen,
-        contentColor = PalaceGold,
+        color = HomePanel,
+        contentColor = HomeGold,
     ) {
         Column(
             modifier = Modifier
@@ -528,7 +528,7 @@ private fun WorkflowCell(title: String, subtitle: String, modifier: Modifier = M
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = PalaceGold,
+                color = HomeGold,
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
             )
@@ -596,10 +596,10 @@ private fun MinistryActionButton(
             .fillMaxSize()
             .clickable(enabled = enabled, onClick = onClick)
             .testTag(testTag),
-        color = if (highlight) PalaceGreenDark else ImperialLightGold,
-        contentColor = if (highlight) ImperialIvory else PalaceInk,
+        color = if (highlight) HomeDeepInk else ImperialLightGold,
+        contentColor = if (highlight) ImperialIvory else HomeInk,
     ) {
-        val textColor = if (highlight) ImperialIvory else PalaceInk
+        val textColor = if (highlight) ImperialIvory else HomeInk
         val secondaryColor = textColor.copy(alpha = if (highlight) 0.72f else 0.68f)
         Column(
             modifier = Modifier
@@ -637,8 +637,8 @@ private fun ColumnScope.FolderResultList(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(if (compact) 96.dp else 112.dp),
-            color = PalacePaper,
-            contentColor = PalaceInk,
+            color = HomePaper,
+            contentColor = HomeInk,
         ) {
             Column(
                 modifier = Modifier
@@ -649,13 +649,13 @@ private fun ColumnScope.FolderResultList(
                 Text(
                     text = "未找到相关文件夹",
                     style = MaterialTheme.typography.titleLarge,
-                    color = PalaceInk,
+                    color = HomeInk,
                     fontWeight = FontWeight.Normal,
                 )
                 Text(
                     text = "藏经阁暂未检出「$searchQuery」相关内容",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = PalaceInk.copy(alpha = 0.68f),
+                    color = HomeInk.copy(alpha = 0.68f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -666,7 +666,7 @@ private fun ColumnScope.FolderResultList(
     folders.forEachIndexed { index, folder ->
         MinistryTicketCard(
             folder = folder,
-            visual = ministryVisual(index),
+            visual = folderVisual(index),
             onTopicSelected = onTopicSelected,
             modifier = Modifier
                 .fillMaxWidth()
@@ -679,7 +679,7 @@ private fun ColumnScope.FolderResultList(
 @Composable
 private fun MinistryTicketCard(
     folder: DashboardFolder,
-    visual: MinistryVisual,
+    visual: FolderVisual,
     onTopicSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean,
@@ -742,14 +742,14 @@ private fun MinistryTicketCard(
                 Text(
                     text = folder.title,
                     style = titleStyle,
-                    color = PalaceInk,
+                    color = HomeInk,
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
                 )
                 Text(
                     text = visual.description,
                     style = summaryStyle,
-                    color = PalaceInk.copy(alpha = 0.84f),
+                    color = HomeInk.copy(alpha = 0.84f),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -774,23 +774,6 @@ private fun MinistryTicketCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun MosaicCell(
-    modifier: Modifier,
-    color: Color,
-    contentColor: Color,
-    content: @Composable BoxScopeWithContentColor.() -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .clip(MinistryTicketShape)
-            .background(color, MinistryTicketShape)
-            .border(1.dp, ImperialBronze.copy(alpha = 0.46f), MinistryTicketShape),
-    ) {
-        BoxScopeWithContentColor(this, contentColor).content()
     }
 }
 
@@ -861,7 +844,7 @@ private fun dashboardFolders(
         val topic = topics.getOrNull(index)
         DashboardFolder(
             id = topic?.id ?: "dashboard-folder-${index + 1}",
-            title = topic?.title ?: DashboardFallbackTitles[index],
+            title = topic?.title ?: FolderFallbackTitles[index],
             itemCount = topic?.let { itemsByTopic[it.id]?.size ?: 0 } ?: 0,
             updatedAtEpochMillis = topic?.updatedAtEpochMillis,
             topic = topic,

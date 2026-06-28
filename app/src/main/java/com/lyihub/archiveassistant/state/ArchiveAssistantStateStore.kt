@@ -245,7 +245,6 @@ class ArchiveAssistantStateStore(
             selectedPane = AppPane.TOPICS,
             selectedTopicId = null,
             modalItem = null,
-            activeDetailFilter = ContentType.ALL,
         )
     }
 
@@ -377,7 +376,6 @@ class ArchiveAssistantStateStore(
             },
             selectedPane = AppPane.DETAIL,
             selectedTopicId = topicId,
-            activeDetailFilter = ContentType.ALL,
             addItemDialogVisible = false,
             addItemDialogValidationMessage = null,
             addItemDialogPrefill = null,
@@ -481,7 +479,6 @@ class ArchiveAssistantStateStore(
         state = state.copy(
             selectedPane = AppPane.DETAIL,
             selectedTopicId = topicId,
-            activeDetailFilter = ContentType.ALL,
             modalItem = null,
         )
     }
@@ -692,7 +689,6 @@ class ArchiveAssistantStateStore(
             smartSummarizationMessage = null,
             selectedPane = AppPane.DETAIL,
             selectedTopicId = result.topicId,
-            activeDetailFilter = ContentType.ALL,
             clipboardContent = if (closeClipboardOnSuccess) null else state.clipboardContent,
             clipboardImageUri = if (closeClipboardOnSuccess) null else state.clipboardImageUri,
             clipboardSourceUri = if (closeClipboardOnSuccess) null else state.clipboardSourceUri,
@@ -743,7 +739,6 @@ class ArchiveAssistantStateStore(
                     parserValidationMessage = null,
                     selectedPane = AppPane.DETAIL,
                     selectedTopicId = payload.topicId,
-                    activeDetailFilter = ContentType.ALL,
                 )
                 saveData()
             }
@@ -813,15 +808,10 @@ class ArchiveAssistantStateStore(
             items = state.items.filterNot { it.topicId == topicId },
             selectedPane = if (deletingActiveTopic) AppPane.TOPICS else state.selectedPane,
             selectedTopicId = if (deletingActiveTopic) null else state.selectedTopicId,
-            activeDetailFilter = if (deletingActiveTopic) ContentType.ALL else state.activeDetailFilter,
             modalItem = state.modalItem?.takeUnless { it.topicId == topicId },
             topicValidationMessage = null,
         )
         saveData()
-    }
-
-    fun selectFilter(contentType: ContentType) {
-        state = state.copy(activeDetailFilter = contentType)
     }
 
     fun openCardModal(itemId: String) {
@@ -933,7 +923,6 @@ class ArchiveAssistantStateStore(
             showClipboardDialog = false,
             selectedPane = AppPane.DETAIL,
             selectedTopicId = targetTopicId,
-            activeDetailFilter = ContentType.ALL,
             modalItem = null,
             addItemDialogVisible = true,
             addItemDialogValidationMessage = null,

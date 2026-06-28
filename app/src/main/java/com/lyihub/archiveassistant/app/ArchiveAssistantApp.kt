@@ -6,7 +6,6 @@ import android.content.Context
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -18,14 +17,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.lyihub.archiveassistant.data.AiEnginePresetRepository
@@ -51,7 +47,6 @@ import com.lyihub.archiveassistant.ui.screens.ManagePane
 import com.lyihub.archiveassistant.ui.screens.MemorialBriefingPane
 import com.lyihub.archiveassistant.ui.screens.MemorialDemoOverlay
 import com.lyihub.archiveassistant.ui.screens.SettingsPane
-import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
 import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 import kotlinx.coroutines.launch
 
@@ -538,7 +533,7 @@ private fun SinglePaneLayout(
             if (topic != null) {
                 DetailPane(
                     topic = topic,
-                    items = state.filteredSelectedTopicItems,
+                    items = state.visibleSelectedTopicItems,
                     searchQuery = state.homeSearchQuery,
                     onBack = stateStore::closePanes,
                     onItemClick = stateStore::openCardModal,
@@ -599,28 +594,12 @@ private fun SinglePaneLayout(
             deleteConfirmTopicId = state.deleteConfirmTopicId,
         )
 
-        AppPane.CLASSIFICATION_REVIEW -> HomePane(
-            title = "聚合拾遗",
-            parserValidationMessage = state.parserValidationMessage,
-            recentTopics = if (state.homeSearchQuery.isBlank()) state.topics else state.searchedTopics,
-            itemsByTopic = state.itemsByTopic,
-            searchQuery = state.homeSearchQuery,
-            smartSummarizationMessage = state.smartSummarizationMessage,
-            onTopicSelected = stateStore::openTopic,
-            onOpenSettings = stateStore::openSettings,
-            onOpenManage = stateStore::openTopicManagement,
-            onCreateTopic = stateStore::openTopicManagementForCreate,
-            onSearchQueryChanged = stateStore::updateHomeSearchQuery,
-            onOpenClipboard = stateStore::openLatestClipboardDialog,
-            onOpenMemorialDemo = onOpenMemorialDemo,
-        )
-
         AppPane.CARD_DETAIL -> {
             val topic = state.selectedTopic
             if (topic != null) {
                 DetailPane(
                     topic = topic,
-                    items = state.filteredSelectedTopicItems,
+                    items = state.visibleSelectedTopicItems,
                     searchQuery = state.homeSearchQuery,
                     onBack = stateStore::closeCardModal,
                     onItemClick = stateStore::openCardModal,
@@ -681,8 +660,7 @@ private fun WideWorkspaceLayout(
 
             Box(modifier = Modifier.weight(1f)) {
                 when (state.selectedPane) {
-                    AppPane.TOPICS,
-                    AppPane.CLASSIFICATION_REVIEW -> MemorialBriefingPane(
+                    AppPane.TOPICS -> MemorialBriefingPane(
                         pendingCount = state.topics.take(3).sumOf { topic ->
                             ((state.itemsByTopic[topic.id]?.size ?: 0) + topic.title.length) % 3
                         },
@@ -695,7 +673,7 @@ private fun WideWorkspaceLayout(
                         if (topic != null) {
                             DetailPane(
                                 topic = topic,
-                                items = state.filteredSelectedTopicItems,
+                                items = state.visibleSelectedTopicItems,
                                 searchQuery = state.homeSearchQuery,
                                 onBack = stateStore::closePanes,
                                 onItemClick = stateStore::openCardModal,
@@ -749,22 +727,5 @@ private fun WideWorkspaceLayout(
             }
         }
 
-        WideCenterDebugGuide(modifier = Modifier.fillMaxSize())
-    }
-}
-
-@Composable
-private fun WideCenterDebugGuide(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val x = size.width / 2f
-        val dash = 10.dp.toPx()
-        val gap = 8.dp.toPx()
-        drawLine(
-            color = ImperialCinnabar.copy(alpha = 0.52f),
-            start = Offset(x, 0f),
-            end = Offset(x, size.height),
-            strokeWidth = 1.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, gap), 0f),
-        )
     }
 }

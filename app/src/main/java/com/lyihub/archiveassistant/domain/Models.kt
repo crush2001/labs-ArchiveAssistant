@@ -116,7 +116,6 @@ enum class AppPane {
     TOPICS,
     DETAIL,
     SETTINGS,
-    CLASSIFICATION_REVIEW,
     CARD_DETAIL,
     MANAGE,
 }

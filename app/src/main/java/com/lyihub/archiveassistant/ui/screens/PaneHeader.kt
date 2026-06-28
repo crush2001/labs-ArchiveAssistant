@@ -1,0 +1,61 @@
+package com.lyihub.archiveassistant.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+
+@Composable
+internal fun PaneHeroHeader(
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    showBackButton: Boolean = false,
+    onBack: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (showBackButton && onBack != null) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = Color.Black,
+                    )
+                }
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.displayLarge,
+            color = Color.Black,
+            fontWeight = FontWeight.Normal,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.titleSmall,
+            color = Color.Black.copy(alpha = 0.78f),
+            modifier = Modifier
+                .fillMaxWidth(0.56f)
+                .testTag("pane-hero-summary"),
+        )
+    }
+}

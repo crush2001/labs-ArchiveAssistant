@@ -35,7 +35,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
@@ -97,9 +96,8 @@ import com.lyihub.archiveassistant.data.resolveDisplayName
 import com.lyihub.archiveassistant.data.uniqueImportFile
 import java.io.File
 
-private val DetailPalaceGreen = ImperialIvory
-private val DetailPalaceGold = Color.Black
-private val DetailPaper = ImperialIvory
+private val DetailBackground = ImperialIvory
+private val DetailBorder = Color.Black
 private val DetailPaperDeep = ImperialParchment
 private val DetailInk = Color.Black
 private val DetailCinnabar = ImperialCinnabar
@@ -147,13 +145,13 @@ fun DetailPane(
     PaneContainer(
         modifier = modifier
             .testTag("detail-pane")
-            .background(DetailPalaceGreen),
+            .background(DetailBackground),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
-                .background(DetailPalaceGreen),
+                .background(DetailBackground),
         ) {
             Image(
                 painter = painterResource(id = R.drawable.memorial_xuan_paper),
@@ -218,6 +216,7 @@ private fun ArticleMasonryGrid(
     onItemClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val columns = distributeArticleCards(items)
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -227,20 +226,43 @@ private fun ArticleMasonryGrid(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items.forEachIndexed { index, item ->
-                    if (index % 2 == column) {
-                        MemorialArticleCard(
-                            item = item,
-                            visual = articleVisual(index, hasArticleImage(item)),
-                            searchQuery = searchQuery,
-                            onClick = { onItemClick(item.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                columns[column].forEach { card ->
+                    MemorialArticleCard(
+                        item = card.item,
+                        visual = card.visual,
+                        searchQuery = searchQuery,
+                        onClick = { onItemClick(card.item.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
     }
+}
+
+private data class MasonryArticleCard(
+    val item: KnowledgeItem,
+    val visual: ArticleVisual,
+)
+
+private fun distributeArticleCards(items: List<KnowledgeItem>): List<List<MasonryArticleCard>> {
+    val columns = List(2) { mutableListOf<MasonryArticleCard>() }
+    val heights = FloatArray(2)
+    items.forEachIndexed { index, item ->
+        val visual = articleVisual(index, hasArticleImage(item))
+        val column = if (heights[0] <= heights[1]) 0 else 1
+        columns[column] += MasonryArticleCard(item, visual)
+        heights[column] += estimateArticleHeight(item, visual)
+    }
+    return columns
+}
+
+private fun estimateArticleHeight(item: KnowledgeItem, visual: ArticleVisual): Float {
+    val textWeight = 1f +
+        (item.title.length / 18f).coerceAtMost(2.2f) +
+        (item.summary.ifBlank { item.fullText }.length / 72f).coerceAtMost(3.6f)
+    val imageWeight = visual.imageRes?.let { 1.2f / visual.aspectRatio.coerceAtLeast(0.48f) } ?: 0f
+    return textWeight + imageWeight
 }
 
 private fun hasArticleImage(item: KnowledgeItem): Boolean {
@@ -255,42 +277,13 @@ private fun DetailCourtHeader(
     modifier: Modifier = Modifier,
     showBackButton: Boolean,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (showBackButton) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                        tint = DetailPalaceGold,
-                    )
-                }
-            }
-        }
-        Text(
-            text = topic.title,
-            style = MaterialTheme.typography.displayMedium,
-            color = DetailPalaceGold,
-            fontWeight = FontWeight.Normal,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "尚书归档，共 $itemCount 篇。两列铺陈，便于快速浏览、筛选与复查。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = DetailInk.copy(alpha = 0.78f),
-            modifier = Modifier
-                .fillMaxWidth(0.56f)
-                .testTag("detail-summary"),
-        )
-    }
+    PaneHeroHeader(
+        title = topic.title,
+        description = "尚书归档，共 $itemCount 篇。两列铺陈，便于快速浏览、筛选与复查。",
+        showBackButton = showBackButton,
+        onBack = onBack,
+        modifier = modifier.testTag("detail-summary"),
+    )
 }
 
 @Composable
@@ -307,7 +300,7 @@ private fun MemorialArticleCard(
         modifier = modifier
             .clip(cardShape)
             .background(DetailPaperDeep, cardShape)
-            .border(1.dp, DetailPalaceGold.copy(alpha = 0.5f), cardShape)
+            .border(1.dp, DetailBorder.copy(alpha = 0.5f), cardShape)
             .clickable(onClick = onClick)
             .testTag("knowledge-card-${item.id}"),
     ) {
@@ -436,7 +429,7 @@ private fun EmptyMemorialShelf(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .background(DetailPaperDeep)
-            .border(1.dp, DetailPalaceGold.copy(alpha = 0.78f)),
+            .border(1.dp, DetailBorder.copy(alpha = 0.78f)),
         contentAlignment = Alignment.Center,
     ) {
         Image(
@@ -480,7 +473,7 @@ private fun PaperVeil(modifier: Modifier = Modifier) {
                 Brush.verticalGradient(
                     listOf(
                         ImperialIvory.copy(alpha = 0.16f),
-                        DetailPaper.copy(alpha = 0.42f),
+                        ImperialIvory.copy(alpha = 0.42f),
                         ImperialUmber.copy(alpha = 0.05f),
                     ),
                 ),
