@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -98,6 +100,16 @@ private val DetailPaperDeep = ImperialParchment
 private val DetailInk = Color.Black
 private val DetailCinnabar = ImperialCinnabar
 private val DetailArticleTags = listOf("要闻", "人物", "趋势", "资料", "待阅", "摘录", "案例", "长文")
+private val DetailFixedTagColors = listOf(
+    Color(0xFFB83E2F),
+    Color(0xFF8B654A),
+    Color(0xFFD1A36B),
+    Color(0xFFE65D3F),
+    Color(0xFF9C4A37),
+    Color(0xFF3E3E46),
+    Color(0xFF78ABCC),
+    Color(0xFF6F8D72),
+)
 private val DetailCardCorner = 9.dp
 private val DetailTagChipShape = GenericShape { size, _ ->
     val notch = size.minDimension * 0.26f
@@ -149,7 +161,18 @@ fun DetailPane(
 ) {
     val horizontalPadding = 24.dp
     val topPadding = 56.dp
-    val contentTopPadding = 132.dp
+    val contentTopPadding = 128.dp
+    val availableTags = remember(items) {
+        items.flatMap(::articleTags).distinct()
+    }
+    var activeTags by remember(availableTags) { mutableStateOf(availableTags.toSet()) }
+    val filteredItems = remember(items, activeTags) {
+        if (availableTags.isEmpty() || activeTags.isEmpty()) {
+            emptyList()
+        } else {
+            items.filter { item -> articleTags(item).any { tag -> tag in activeTags } }
+        }
+    }
 
     PaneContainer(
         modifier = modifier
@@ -191,16 +214,87 @@ fun DetailPane(
                     }
                 } else {
                     item {
-                        ArticleMasonryGrid(
-                            items = items,
-                            onItemClick = onItemClick,
-                            modifier = Modifier
-                                .fillMaxWidth(),
+                        ArticleFilterBar(
+                            tags = availableTags,
+                            activeTags = activeTags,
+                            onToggleTag = { tag ->
+                                activeTags = if (tag in activeTags) {
+                                    activeTags - tag
+                                } else {
+                                    activeTags + tag
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+                    item {
+                        if (filteredItems.isEmpty()) {
+                            EmptyFilteredShelf(
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            ArticleMasonryGrid(
+                                items = filteredItems,
+                                onItemClick = onItemClick,
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ArticleFilterBar(
+    tags: List<String>,
+    activeTags: Set<String>,
+    onToggleTag: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "筛选：",
+            style = MaterialTheme.typography.labelLarge,
+            color = DetailInk,
+            maxLines = 1,
+        )
+        LazyRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            items(tags) { tag ->
+                ArticleTagChip(
+                    text = tag,
+                    selected = tag in activeTags,
+                    fixedColor = tagColor(tag),
+                    onClick = { onToggleTag(tag) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFilteredShelf(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(92.dp)
+            .clip(RoundedCornerShape(DetailCardCorner))
+            .background(Color.White.copy(alpha = 0.38f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "请选择至少一个标签",
+            style = MaterialTheme.typography.bodyMedium,
+            color = DetailInk.copy(alpha = 0.62f),
+        )
     }
 }
 
@@ -352,7 +446,9 @@ private fun MemorialArticleCard(
                     tags.forEachIndexed { index, tag ->
                         ArticleTagChip(
                             text = tag,
-                            tileVisual = homeTileVisual(index + item.id.hashCode()),
+                            selected = true,
+                            fixedColor = tagColor(tag),
+                            onClick = null,
                         )
                     }
                 }
@@ -373,28 +469,23 @@ private fun articleTags(item: KnowledgeItem): List<String> {
 private fun ArticleTagChip(
     text: String,
     modifier: Modifier = Modifier,
-    tileVisual: ArchiveTileVisual,
+    selected: Boolean,
+    fixedColor: Color,
+    onClick: (() -> Unit)?,
 ) {
     val tagShape = DetailTagChipShape
+    val backgroundColor = if (selected) fixedColor else Color(0xFFE3E0D8)
+    val borderColor = if (selected) fixedColor.copy(alpha = 0.82f) else Color.Black.copy(alpha = 0.18f)
+    val textColor = if (selected) Color.White else Color.Black.copy(alpha = 0.5f)
     Box(
         modifier = modifier
             .height(20.dp)
             .clip(tagShape)
-            .background(ImperialIvory, tagShape)
-            .border(0.8.dp, tileVisual.borderColor.copy(alpha = 0.88f), tagShape),
+            .background(backgroundColor, tagShape)
+            .border(0.8.dp, borderColor, tagShape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            painter = painterResource(id = tileVisual.backgroundRes),
-            contentDescription = null,
-            modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.Crop,
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.24f)),
-        )
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall.copy(
@@ -402,13 +493,21 @@ private fun ArticleTagChip(
                 fontSize = 10.sp,
                 lineHeight = 10.sp,
             ),
-            color = Color.White,
+            color = textColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 7.dp),
         )
     }
 }
+
+private fun tagColor(tag: String): Color {
+    val index = DetailArticleTags.indexOf(tag).takeIf { it >= 0 }
+        ?: positiveMod(tag.hashCode(), DetailFixedTagColors.size)
+    return DetailFixedTagColors[index % DetailFixedTagColors.size]
+}
+
+private fun positiveMod(value: Int, modulus: Int): Int = ((value % modulus) + modulus) % modulus
 
 @Composable
 private fun EmptyMemorialShelf(modifier: Modifier = Modifier) {

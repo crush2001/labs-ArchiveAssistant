@@ -102,9 +102,10 @@ fun MemorialBriefingPane(
     modifier: Modifier = Modifier,
 ) {
     var activeBriefIndex by remember { mutableIntStateOf(0) }
-    XuanPaperBackground(
+    Box(
         modifier = modifier
             .fillMaxSize()
+            .background(ImperialIvory)
             .clickable(onClick = onOpenMemorialDemo),
     ) {
         MemorialCoverWheel(

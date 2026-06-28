@@ -6,6 +6,7 @@ import android.content.Context
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
+import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.lyihub.archiveassistant.data.AiEnginePresetRepository
@@ -47,7 +49,6 @@ import com.lyihub.archiveassistant.ui.screens.MemorialBriefingPane
 import com.lyihub.archiveassistant.ui.screens.MemorialDemoOverlay
 import com.lyihub.archiveassistant.ui.screens.SettingsPane
 import com.lyihub.archiveassistant.ui.screens.TopicManagementDialogs
-import com.lyihub.archiveassistant.ui.components.XuanPaperBackground
 import kotlinx.coroutines.launch
 
 @Composable
@@ -134,9 +135,10 @@ fun ArchiveAssistantApp(
         LayoutMode.FOLDABLE -> "layout-mode-foldable"
     }
 
-    XuanPaperBackground(
+    Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(ImperialIvory)
             .testTag(layoutModeTag),
     ) {
         if (layoutInfo.mode == LayoutMode.COMPACT) {

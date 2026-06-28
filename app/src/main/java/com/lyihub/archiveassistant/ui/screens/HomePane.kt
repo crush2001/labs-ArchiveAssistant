@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -58,6 +57,7 @@ import com.lyihub.archiveassistant.domain.Topic
 import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
 import com.lyihub.archiveassistant.ui.theme.ImperialDisplayFont
 import com.lyihub.archiveassistant.ui.theme.ImperialIvory
+import com.lyihub.archiveassistant.ui.theme.ImperialStampTitleFont
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
 private val HomeInk = ImperialUmber
@@ -614,11 +614,12 @@ private fun MinistryStampStack(
             ) {
                 Text(
                     text = buildAnnotatedString {
+                        val headerFontSize = MaterialTheme.typography.titleMedium.fontSize
                         withStyle(
                             SpanStyle(
                                 color = ImperialCinnabar,
-                                fontFamily = ImperialDisplayFont,
-                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                                fontFamily = ImperialStampTitleFont,
+                                fontSize = headerFontSize,
                             ),
                         ) {
                             append("「尚书省」")
@@ -626,14 +627,14 @@ private fun MinistryStampStack(
                         withStyle(
                             SpanStyle(
                                 color = Color.Black,
-                                fontFamily = FontFamily.Default,
-                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                                fontFamily = ImperialDisplayFont,
+                                fontSize = headerFontSize,
                             ),
                         ) {
                             append(" · 最近主题")
                         }
                     },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

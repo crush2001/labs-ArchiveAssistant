@@ -1,6 +1,7 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -9,7 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
-import com.lyihub.archiveassistant.ui.components.XuanPaperBackground
+import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 
 @Composable
 fun MemorialDemoOverlay(onDismiss: () -> Unit) {
@@ -34,12 +35,11 @@ fun MemorialDemoOverlay(onDismiss: () -> Unit) {
     BackHandler(onBack = requestDismiss)
     MemorialImmersiveSystemUi(onDispose = { foldView.value = null })
 
-    XuanPaperBackground(
+    Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(ImperialIvory)
             .testTag("memorial-demo-overlay"),
-        textureAlpha = 0.2f,
-        veilAlpha = 0.72f,
     ) {
         AndroidView(
             factory = { context ->
