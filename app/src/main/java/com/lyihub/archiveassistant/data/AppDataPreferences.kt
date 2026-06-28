@@ -2,6 +2,7 @@ package com.lyihub.archiveassistant.data
 
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
@@ -13,6 +14,7 @@ import org.json.JSONObject
 object AppDataPreferences {
     val TopicsKey = stringPreferencesKey("app_topics_json")
     val ItemsKey = stringPreferencesKey("app_items_json")
+    val DemoDataVersionKey = intPreferencesKey("demo_data_version")
 
     fun decodeTopics(preferences: Preferences): List<Topic> {
         val json = preferences[TopicsKey] ?: return emptyList()
@@ -91,5 +93,11 @@ object AppDataPreferences {
             })
         }
         preferences[ItemsKey] = array.toString()
+    }
+
+    fun decodeDemoDataVersion(preferences: Preferences): Int = preferences[DemoDataVersionKey] ?: 0
+
+    fun encodeDemoDataVersion(version: Int, preferences: MutablePreferences) {
+        preferences[DemoDataVersionKey] = version
     }
 }

@@ -95,7 +95,22 @@ class ArchiveAssistantStateStore(
         scope.launch {
             val persistedTopics = repo.loadTopics()
             val persistedItems = repo.loadItems()
-            if (persistedTopics.isEmpty() && persistedItems.isEmpty()) return@launch
+            val demoDataVersion = repo.loadDemoDataVersion()
+            if (shouldRefreshDemoData(persistedTopics, persistedItems, demoDataVersion)) {
+                val demoTopics = SampleKnowledgeData.topics
+                val demoItems = SampleKnowledgeData.items
+                repo.saveDemoData(demoTopics, demoItems, SampleKnowledgeData.DemoDataVersion)
+                val restoredState = resolveMockImagePaths(
+                    state.copy(
+                        topics = demoTopics,
+                        items = demoItems,
+                    )
+                )
+                state = restoredState
+                nextTopicIndex = deriveNextTopicIndex(restoredState.topics)
+                nextItemIndex = deriveNextItemIndex(restoredState.items)
+                return@launch
+            }
 
             val restoredState = resolveMockImagePaths(
                 state.copy(
@@ -107,6 +122,26 @@ class ArchiveAssistantStateStore(
             nextTopicIndex = deriveNextTopicIndex(restoredState.topics)
             nextItemIndex = deriveNextItemIndex(restoredState.items)
         }
+    }
+
+    private fun shouldRefreshDemoData(
+        persistedTopics: List<Topic>,
+        persistedItems: List<KnowledgeItem>,
+        demoDataVersion: Int,
+    ): Boolean {
+        if (demoDataVersion >= SampleKnowledgeData.DemoDataVersion) return false
+        if (persistedTopics.isEmpty() && persistedItems.isEmpty()) return true
+        val oldDemoTopicIds = setOf(
+            "topic-ai-architecture",
+            "topic-ui-inspiration",
+            "topic-anthropology-clips",
+            "topic-hidden-travel",
+            "topic-open-source-tools",
+        )
+        val looksLikeOldDemoData = persistedTopics.map { it.id }.toSet().containsAll(oldDemoTopicIds) &&
+            persistedTopics.size <= oldDemoTopicIds.size &&
+            persistedItems.size <= 8
+        return looksLikeOldDemoData
     }
 
     private fun saveData() {

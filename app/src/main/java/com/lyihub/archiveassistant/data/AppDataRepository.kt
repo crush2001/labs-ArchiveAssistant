@@ -20,10 +20,23 @@ class AppDataRepository(
         return AppDataPreferences.decodeItems(preferences)
     }
 
+    suspend fun loadDemoDataVersion(): Int {
+        val preferences = dataStore.data.firstOrNull() ?: return 0
+        return AppDataPreferences.decodeDemoDataVersion(preferences)
+    }
+
     suspend fun saveAll(topics: List<Topic>, items: List<KnowledgeItem>) {
         dataStore.edit { preferences ->
             AppDataPreferences.encodeTopics(topics, preferences)
             AppDataPreferences.encodeItems(items, preferences)
+        }
+    }
+
+    suspend fun saveDemoData(topics: List<Topic>, items: List<KnowledgeItem>, version: Int) {
+        dataStore.edit { preferences ->
+            AppDataPreferences.encodeTopics(topics, preferences)
+            AppDataPreferences.encodeItems(items, preferences)
+            AppDataPreferences.encodeDemoDataVersion(version, preferences)
         }
     }
 }
