@@ -29,7 +29,7 @@ internal data class ArchiveTileVisual(
     val borderColor: Color,
 )
 
-internal val ArchiveCutCornerShape: Shape = FixedCutCornerShape(16)
+internal val ArchiveCutCornerShape: Shape = FixedCutCornerShape(10)
 
 private class FixedCutCornerShape(
     private val notchDp: Int,

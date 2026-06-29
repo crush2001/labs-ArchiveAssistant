@@ -170,7 +170,7 @@ fun DetailPane(
         if (availableTags.isEmpty() || activeTags.isEmpty()) {
             emptyList()
         } else {
-            items.filter { item -> articleTags(item).any { tag -> tag in activeTags } }
+            items.filter { item -> articleTags(item).all { tag -> tag in activeTags } }
         }
     }
 
@@ -415,9 +415,7 @@ private fun MemorialArticleCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(imageShape)
-                        .background(Color.White, imageShape)
-                        .padding(5.dp),
+                        .clip(imageShape),
                 ) {
                     Image(
                         painter = painterResource(id = imageResId),
