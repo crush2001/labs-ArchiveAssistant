@@ -613,15 +613,16 @@ private fun TilePulseWave(
       modifier.drawBehind {
         val baseStroke = (size.minDimension * 0.034f).coerceIn(2.4f, 4.8f)
         val cycleProgress = progress.value % 1f
-        repeat(1) {
-          val phase = cycleProgress
+        listOf(0f, 0.38f).forEachIndexed { index, delay ->
+          val phase = (cycleProgress - delay).takeIf { it >= 0f } ?: (cycleProgress + 1f - delay)
+          if (index == 1 && cycleProgress < delay) return@forEachIndexed
           val inset = size.minDimension * 0.28f * phase
           val expandedSize =
             Size(
               width = size.width + inset * 2f,
               height = size.height + inset * 2f,
             )
-          val alpha = (1f - phase).coerceIn(0f, 1f) * 0.42f
+          val alpha = (1f - phase).coerceIn(0f, 1f) * if (index == 0) 0.42f else 0.32f
           drawPath(
             path = cutoutPulsePath(expandedSize, inset),
             color = color.copy(alpha = alpha),
