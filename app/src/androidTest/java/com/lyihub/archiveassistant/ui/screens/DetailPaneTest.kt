@@ -92,31 +92,6 @@ class DetailPaneTest {
   }
 
   @Test
-  fun cardModal_displaysItemDetailsAndCloses() {
-    val item = defaultItems.first()
-    var closeCalled = false
-
-    composeTestRule.setContent {
-      ArchiveAssistantTheme {
-        CardModal(
-          item = item,
-          onClose = { closeCalled = true },
-          onEdit = {},
-          onDelete = {},
-        )
-      }
-    }
-
-    composeTestRule.onNodeWithTag("card-modal").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("card-modal-close").assertIsDisplayed()
-    composeTestRule.onNodeWithText(item.title).assertIsDisplayed()
-    composeTestRule.onNodeWithText(item.contentType.label).assertIsDisplayed()
-
-    composeTestRule.onNodeWithTag("card-modal-close").performClick()
-    assertTrue(closeCalled)
-  }
-
-  @Test
   fun addItemDialog_whenSourcePrefillIsLocked_doesNotSwitchType() {
     var confirmedTopicId: String? = null
     var confirmedType: ContentType? = null

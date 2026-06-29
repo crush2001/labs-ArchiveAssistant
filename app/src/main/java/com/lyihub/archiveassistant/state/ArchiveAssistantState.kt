@@ -46,7 +46,7 @@ data class ArchiveAssistantState(
   val isSmartSummarizing: Boolean = false,
   val smartSummarizationMessage: String? = null,
   val topicValidationMessage: String? = null,
-  val modalItem: KnowledgeItem? = null,
+  val readingItem: KnowledgeItem? = null,
   val aiSettings: AiEngineSettings = AiEngineSettings(),
   val localModelState: LocalModelState = LocalModelState(status = LocalModelStatus.NOT_DOWNLOADED),
   val benchmarkResult: BenchResult? = null,

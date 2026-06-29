@@ -99,13 +99,13 @@ class ArchiveAssistantStateStoreTest {
     assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
 
     val itemId = store.state.selectedTopicItems.first().id
-    store.openCardModal(itemId)
-    assertEquals(AppPane.CARD_DETAIL, store.state.selectedPane)
-    assertEquals(itemId, store.state.modalItem?.id)
+    store.openArticleReader(itemId)
+    assertEquals(AppPane.ARTICLE_READER, store.state.selectedPane)
+    assertEquals(itemId, store.state.readingItem?.id)
 
-    store.closeCardModal()
+    store.closeArticleReader()
     assertEquals(AppPane.DETAIL, store.state.selectedPane)
-    assertNull(store.state.modalItem)
+    assertNull(store.state.readingItem)
   }
 
   @Test
@@ -758,18 +758,18 @@ class ArchiveAssistantStateStoreTest {
   }
 
   @Test
-  fun closeCardModal_preservesSelectedTopic() {
+  fun closeArticleReader_preservesSelectedTopic() {
     val store = ArchiveAssistantStateStore()
     store.openTopic(SampleKnowledgeData.DefaultTopicId)
 
     val itemId = store.state.visibleSelectedTopicItems.first().id
-    store.openCardModal(itemId)
-    assertEquals(AppPane.CARD_DETAIL, store.state.selectedPane)
-    assertEquals(itemId, store.state.modalItem?.id)
+    store.openArticleReader(itemId)
+    assertEquals(AppPane.ARTICLE_READER, store.state.selectedPane)
+    assertEquals(itemId, store.state.readingItem?.id)
 
-    store.closeCardModal()
+    store.closeArticleReader()
     assertEquals(AppPane.DETAIL, store.state.selectedPane)
-    assertNull(store.state.modalItem)
+    assertNull(store.state.readingItem)
     assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
   }
 

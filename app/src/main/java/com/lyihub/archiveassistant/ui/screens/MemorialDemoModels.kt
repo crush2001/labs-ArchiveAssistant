@@ -65,6 +65,11 @@ internal enum class StampCompletion {
   AutoDismiss,
 }
 
+internal enum class MemorialReaderMode {
+  ReviewStack,
+  ArticleReader,
+}
+
 internal enum class CoverVerdictMotion {
   Gesture,
   Button,

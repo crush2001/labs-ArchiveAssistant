@@ -121,6 +121,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private var toolbarPressedStamp: MemorialStamp? = null
   private var hideReadingControlsDuringClose = false
   private var onAutoDismiss: (() -> Unit)? = null
+  private var onCloseAnimationFinished: (() -> Unit)? = null
+  private var readerMode = MemorialReaderMode.ReviewStack
   private var hasPlayedOpenAnimation = false
   private val showSummaryRunnable = Runnable {
     if (
@@ -169,9 +171,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   fun setDossiers(nextDossiers: List<PendingMemorialDossier>) {
+    val targetCount = expectedDossierCount()
     val normalized =
       (nextDossiers.ifEmpty { fallbackPendingMemorialDossiers } + fallbackPendingMemorialDossiers)
-        .take(TOTAL_PENDING_MEMORIALS)
+        .take(targetCount)
     if (dossiers == normalized && pages.isNotEmpty()) {
       invalidate()
       return
@@ -236,6 +239,26 @@ internal class MemorialFoldView(context: Context) : View(context) {
   fun setAutoDismissHandler(handler: () -> Unit) {
     onAutoDismiss = handler
   }
+
+  fun setCloseAnimationFinishedHandler(handler: () -> Unit) {
+    onCloseAnimationFinished = handler
+  }
+
+  fun setReaderMode(mode: MemorialReaderMode) {
+    if (readerMode == mode) return
+    readerMode = mode
+    if (readerMode == MemorialReaderMode.ArticleReader) {
+      toolbarPressedStamp = null
+      coverPreviewStamp = null
+      coverPreviewStampStrength = 0f
+      coverPreviewStampTargetStrength = 0f
+      hideSummary(animated = false)
+    }
+    invalidate()
+  }
+
+  private fun expectedDossierCount(): Int =
+    if (readerMode == MemorialReaderMode.ArticleReader) 1 else TOTAL_PENDING_MEMORIALS
 
   override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
     super.onSizeChanged(width, height, oldWidth, oldHeight)
@@ -330,10 +353,13 @@ internal class MemorialFoldView(context: Context) : View(context) {
         lastTouchX = event.x
         downTouchX = event.x
         downTouchY = event.y
-        toolbarPressedStamp = toolbarHitTest(event.x, event.y)
-        if (toolbarPressedStamp == null && collapseButtonRect.contains(event.x, event.y)) {
-          toolbarPressedStamp = MemorialStamp.Collapse
-        }
+        toolbarPressedStamp =
+          if (readerMode == MemorialReaderMode.ReviewStack) {
+            toolbarHitTest(event.x, event.y)
+              ?: MemorialStamp.Collapse.takeIf { collapseButtonRect.contains(event.x, event.y) }
+          } else {
+            null
+          }
         isDragging = false
         return true
       }
@@ -356,9 +382,23 @@ internal class MemorialFoldView(context: Context) : View(context) {
         velocityTracker?.addMovement(event)
         if (event.actionMasked == MotionEvent.ACTION_UP) {
           val pressedStamp = toolbarPressedStamp
-          val releasedStamp = toolbarHitTest(event.x, event.y)
-          val releasedCollapse = collapseButtonRect.contains(event.x, event.y)
-          if (!isDragging && pressedStamp == MemorialStamp.Collapse && releasedCollapse) {
+          val releasedStamp =
+            if (readerMode == MemorialReaderMode.ReviewStack) toolbarHitTest(event.x, event.y)
+            else null
+          val releasedCollapse =
+            readerMode == MemorialReaderMode.ReviewStack &&
+              collapseButtonRect.contains(event.x, event.y)
+          val tappedBlankArticleReader =
+            readerMode == MemorialReaderMode.ArticleReader &&
+              !isDragging &&
+              !touchHitsVisibleArticle(downTouchX, downTouchY) &&
+              !touchHitsVisibleArticle(event.x, event.y)
+          if (tappedBlankArticleReader) {
+            performClick()
+            closeWithAnimation {
+              onCloseAnimationFinished?.invoke() ?: onAutoDismiss?.invoke()
+            }
+          } else if (!isDragging && pressedStamp == MemorialStamp.Collapse && releasedCollapse) {
             collapseToStack()
           } else if (!isDragging && pressedStamp != null && pressedStamp == releasedStamp) {
             startStampAndDismiss(pressedStamp)
@@ -668,6 +708,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawCoverControlsLayer(canvas: Canvas, alpha: Float) {
+    if (readerMode == MemorialReaderMode.ArticleReader) return
     if (alpha <= 0.01f) return
     drawWithTransitionAlpha(canvas, alpha) {
       drawCoverGestureHint(canvas)
@@ -675,6 +716,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawReadingControls(canvas: Canvas, alpha: Float) {
+    if (readerMode == MemorialReaderMode.ArticleReader) return
     if (alpha <= 0.01f) return
     drawWithTransitionAlpha(canvas, alpha) {
       drawCollapseButton(canvas)
@@ -742,11 +784,11 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawCoverStack(canvas: Canvas, cover: ArticleLayout, coverLeft: Float) {
-    val remaining = (TOTAL_PENDING_MEMORIALS - coverStackIndex - 1).coerceAtLeast(0)
+    val remaining = (expectedDossierCount() - coverStackIndex - 1).coerceAtLeast(0)
     val stackCount = min(remaining, 5)
     val isVerdictLeaving = coverFinalStamp != null || currentStamp != null
     val stackShiftProgress =
-      if (isVerdictLeaving && coverStackIndex < TOTAL_PENDING_MEMORIALS - 1) {
+      if (isVerdictLeaving && coverStackIndex < expectedDossierCount() - 1) {
         smoothStep(0f, 0.72f, coverStackLiftProgress.coerceIn(0f, 1f))
       } else {
         0f
@@ -877,7 +919,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     drawToolbarButton(canvas, coverActionRightRect, "右滑准奏")
     drawToolbarButton(canvas, coverActionKeepRect, "上滑留中")
 
-    val counter = "第 ${coverStackIndex + 1}/$TOTAL_PENDING_MEMORIALS 封"
+    val counter = "第 ${coverStackIndex + 1}/${expectedDossierCount()} 封"
     drawCenteredText(
       canvas,
       counter,
@@ -1685,6 +1727,26 @@ internal class MemorialFoldView(context: Context) : View(context) {
     }
   }
 
+  private fun touchHitsVisibleArticle(x: Float, y: Float): Boolean {
+    if (articles.isEmpty()) return false
+    val viewportWidth = foldRight - foldLeft
+    if (viewportWidth <= 0f) return false
+    return articles.any { article ->
+      val screenLeft = foldLeft + article.left - foldScrollX
+      val transform =
+        calculateTransform(
+          screenLeft = screenLeft,
+          actualWidth = article.width,
+          viewportWidth = viewportWidth,
+        )
+      transform.visible &&
+        x >= screenLeft &&
+        x <= screenLeft + article.width &&
+        y >= article.top &&
+        y <= article.top + article.height
+    }
+  }
+
   private fun drawOpeningAnimation(canvas: Canvas, viewportWidth: Float) {
     if (articles.isEmpty()) return
 
@@ -1797,7 +1859,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     }
     drawPaperAging(canvas, articleRect, article.pageIndex)
     drawArticleSurface(canvas, articleRect)
-    drawPageContent(canvas, article, articleRect)
+    drawPageContent(canvas, article, articleRect, coverSequenceIndex)
     if (article.page.type == MemorialPageType.Cover && coverSequenceIndex == coverStackIndex) {
       drawAttachedCoverStamp(canvas, articleRect)
     }
@@ -2126,9 +2188,14 @@ internal class MemorialFoldView(context: Context) : View(context) {
     paints.surface.shader = null
   }
 
-  private fun drawPageContent(canvas: Canvas, article: ArticleLayout, rect: RectF) {
+  private fun drawPageContent(
+    canvas: Canvas,
+    article: ArticleLayout,
+    rect: RectF,
+    coverSequenceIndex: Int,
+  ) {
     when (article.page.type) {
-      MemorialPageType.Cover -> drawCoverContent(canvas, rect, article.page)
+      MemorialPageType.Cover -> drawCoverContent(canvas, rect, article.page, coverSequenceIndex)
       MemorialPageType.Directory -> drawDirectoryContent(canvas, rect, article.page)
       MemorialPageType.BodyLeft,
       MemorialPageType.BodyRight -> drawBodyContent(canvas, rect, article.page)
@@ -2136,8 +2203,14 @@ internal class MemorialFoldView(context: Context) : View(context) {
     }
   }
 
-  private fun drawCoverContent(canvas: Canvas, rect: RectF, page: MemorialPage) {
-    val dossier = dossierFor(page.dossierIndex)
+  private fun drawCoverContent(
+    canvas: Canvas,
+    rect: RectF,
+    page: MemorialPage,
+    coverSequenceIndex: Int,
+  ) {
+    val dossier =
+      dossierFor(if (page.type == MemorialPageType.Cover) coverSequenceIndex else page.dossierIndex)
     val labelWidth = rect.width() * 0.42f
     val labelHeight = rect.height() * 0.58f
     val label =
@@ -2318,7 +2391,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       TextPaint(paints.itemMeta).apply {
         typeface = assets.songTypeface
         textSize = sp(11f)
-        color = AndroidColor.WHITE
+        color = AndroidColor.argb(210, 24, 22, 20)
         textAlign = Paint.Align.LEFT
       }
     val rowHeight = dp(22f)
@@ -2334,7 +2407,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         y += rowHeight + verticalGap
       }
       val chip = RectF(x, y, x + chipWidth, y + rowHeight)
-      drawDirectoryTagChip(canvas, chip, tagChipColor(tag, index))
+      drawDirectoryTagChip(canvas, chip, tagAccentArgb(tag))
       canvas.drawText(
         tag,
         chip.left + dp(7.5f),
@@ -2358,29 +2431,22 @@ internal class MemorialFoldView(context: Context) : View(context) {
     tagChipPath.lineTo(rect.left, rect.bottom - notch)
     tagChipPath.lineTo(rect.left, rect.top + notch)
     tagChipPath.close()
-    paints.article.color = color
+    paints.article.color = withAlpha(color, 34)
     canvas.drawPath(tagChipPath, paints.article)
+    paints.article.style = Paint.Style.STROKE
+    paints.article.strokeWidth = dp(0.85f)
+    paints.article.color = withAlpha(color, 184)
+    canvas.drawPath(tagChipPath, paints.article)
+    paints.article.style = Paint.Style.FILL
   }
 
-  private fun tagChipColor(tag: String, index: Int): Int {
-    val palette =
-      intArrayOf(
-        AndroidColor.rgb(184, 62, 47),
-        AndroidColor.rgb(139, 101, 74),
-        AndroidColor.rgb(209, 163, 107),
-        AndroidColor.rgb(230, 93, 63),
-        AndroidColor.rgb(156, 74, 55),
-        AndroidColor.rgb(62, 62, 70),
-        AndroidColor.rgb(120, 171, 204),
-        AndroidColor.rgb(111, 141, 114),
-      )
-    val paletteIndex = positiveModulo(tag.hashCode() + index, palette.size)
-    return palette[paletteIndex]
-  }
-
-  private fun positiveModulo(value: Int, modulo: Int): Int {
-    if (modulo == 0) return 0
-    return ((value % modulo) + modulo) % modulo
+  private fun withAlpha(color: Int, alpha: Int): Int {
+    return AndroidColor.argb(
+      alpha.coerceIn(0, 255),
+      AndroidColor.red(color),
+      AndroidColor.green(color),
+      AndroidColor.blue(color),
+    )
   }
 
   private fun drawArticlePreviewImage(
@@ -2418,7 +2484,11 @@ internal class MemorialFoldView(context: Context) : View(context) {
     y += dp(28f)
     drawCenteredText(
       canvas,
-      "第 ${page.dossierIndex + 1}/$TOTAL_PENDING_MEMORIALS 封 · 恭呈御览",
+      if (readerMode == MemorialReaderMode.ArticleReader) {
+        "恭呈御览"
+      } else {
+        "第 ${page.dossierIndex + 1}/${expectedDossierCount()} 封 · 恭呈御览"
+      },
       rect.centerX(),
       y,
       paints.meta,
@@ -2969,8 +3039,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
     summaryPinnedByTap = false
     summaryPinnedAtDown = false
     summaryShownByHold = false
-    if (coverStackIndex >= TOTAL_PENDING_MEMORIALS - 1) {
-      coverStackIndex = TOTAL_PENDING_MEMORIALS
+    if (coverStackIndex >= expectedDossierCount() - 1) {
+      coverStackIndex = expectedDossierCount()
       coverDragX = 0f
       coverDragY = 0f
       coverPreviewStamp = null
@@ -3220,6 +3290,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   fun collapseToStack() {
     returnToCoverStack(advanceStack = false)
+  }
+
+  fun expandCurrentCover() {
+    expandFromCover()
   }
 
   private fun returnToCoverStack(advanceStack: Boolean) {

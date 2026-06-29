@@ -118,7 +118,7 @@ enum class AppPane {
   MEMORIAL,
   DETAIL,
   SETTINGS,
-  CARD_DETAIL,
+  ARTICLE_READER,
 }
 
 data class ClassificationPayload(

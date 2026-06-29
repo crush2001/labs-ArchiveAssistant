@@ -1,13 +1,8 @@
 package com.lyihub.archiveassistant.ui.screens
 
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
-import android.webkit.MimeTypeMap
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -70,7 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import com.lyihub.archiveassistant.R
 import com.lyihub.archiveassistant.data.copyUriToFile
 import com.lyihub.archiveassistant.data.importFileName
@@ -97,18 +91,6 @@ private val DetailBorder = Color.Black
 private val DetailPaperDeep = ImperialParchment
 private val DetailInk = Color.Black
 private val DetailCinnabar = ImperialCinnabar
-private val DetailArticleTags = listOf("要闻", "人物", "趋势", "资料", "待阅", "摘录", "案例", "长文")
-private val DetailFixedTagColors =
-  listOf(
-    Color(0xFFB83E2F),
-    Color(0xFF8B654A),
-    Color(0xFFD1A36B),
-    Color(0xFFE65D3F),
-    Color(0xFF9C4A37),
-    Color(0xFF3E3E46),
-    Color(0xFF78ABCC),
-    Color(0xFF6F8D72),
-  )
 private val DetailCardCorner = 9.dp
 private val DetailTagChipShape = GenericShape { size, _ ->
   val notch = size.minDimension * 0.26f
@@ -262,7 +244,7 @@ private fun ArticleFilterBar(
         ArticleTagChip(
           text = tag,
           selected = tag in activeTags,
-          fixedColor = tagColor(tag),
+          fixedColor = tagAccentColor(tag),
           onClick = { onToggleTag(tag) },
         )
       }
@@ -457,7 +439,7 @@ private fun MemorialArticleCard(
             ArticleTagChip(
               text = tag,
               selected = true,
-              fixedColor = tagColor(tag),
+              fixedColor = tagAccentColor(tag),
               onClick = null,
             )
           }
@@ -520,11 +502,11 @@ private fun articleTags(item: KnowledgeItem): List<String> {
       return it
     }
 
-  val formatTag = item.documentFormat?.label ?: item.contentType.label
   val seed = (item.title.length + item.summary.length + item.id.length).coerceAtLeast(0)
-  val first = DetailArticleTags[seed % DetailArticleTags.size]
-  val second = DetailArticleTags[(seed + 3) % DetailArticleTags.size]
-  return listOf(formatTag, first, second).distinct().take(3)
+  return listOf(item.documentFormat?.label ?: item.contentType.label)
+    .plus(fallbackTagLabels(seed))
+    .distinct()
+    .take(3)
 }
 
 @Composable
@@ -536,10 +518,11 @@ private fun ArticleTagChip(
   onClick: (() -> Unit)?,
 ) {
   val tagShape = DetailTagChipShape
-  val backgroundColor = if (selected) fixedColor else Color(0xFFE3E0D8)
+  val backgroundColor =
+    if (selected) fixedColor.copy(alpha = 0.13f) else Color(0xFFE3E0D8).copy(alpha = 0.5f)
   val borderColor =
-    if (selected) fixedColor.copy(alpha = 0.82f) else Color.Black.copy(alpha = 0.18f)
-  val textColor = if (selected) Color.White else Color.Black.copy(alpha = 0.5f)
+    if (selected) fixedColor.copy(alpha = 0.72f) else Color.Black.copy(alpha = 0.16f)
+  val textColor = if (selected) Color.Black.copy(alpha = 0.82f) else Color.Black.copy(alpha = 0.48f)
   Box(
     modifier =
       modifier
@@ -565,15 +548,6 @@ private fun ArticleTagChip(
     )
   }
 }
-
-private fun tagColor(tag: String): Color {
-  val index =
-    DetailArticleTags.indexOf(tag).takeIf { it >= 0 }
-      ?: positiveMod(tag.hashCode(), DetailFixedTagColors.size)
-  return DetailFixedTagColors[index % DetailFixedTagColors.size]
-}
-
-private fun positiveMod(value: Int, modulus: Int): Int = ((value % modulus) + modulus) % modulus
 
 @Composable
 private fun EmptyMemorialShelf(modifier: Modifier = Modifier) {
@@ -656,20 +630,20 @@ private fun FilterChip(
   enabled: Boolean = true,
   onClick: () -> Unit,
 ) {
-  val bgColor =
-    if (selected) {
-      MaterialTheme.colorScheme.primary
-    } else {
-      MaterialTheme.colorScheme.surfaceVariant
-    }
+  val accent = tagAccentColor(label)
+  val bgColor = if (selected) accent.copy(alpha = 0.13f) else Color(0xFFE3E0D8).copy(alpha = 0.46f)
+  val borderColor =
+    if (selected) accent.copy(alpha = 0.68f)
+    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
   val textColor =
     if (selected) {
-      MaterialTheme.colorScheme.onPrimary
+      MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
     } else {
-      MaterialTheme.colorScheme.onSurfaceVariant
+      MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
     }
   Surface(
     color = bgColor,
+    border = androidx.compose.foundation.BorderStroke(0.8.dp, borderColor),
     shape = MaterialTheme.shapes.small,
     modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
   ) {
@@ -1094,184 +1068,6 @@ fun AddItemDialog(
       }
     }
   }
-}
-
-@Composable
-fun CardModal(
-  item: KnowledgeItem,
-  onClose: () -> Unit,
-  onEdit: () -> Unit,
-  onDelete: () -> Unit,
-) {
-  ArchiveDialog(
-    title = item.title,
-    onDismissRequest = onClose,
-    testTag = "card-modal",
-    actions = {
-      ArchiveDialogAction(
-        label = "删除",
-        onClick = onDelete,
-        destructive = true,
-      )
-      ArchiveDialogAction(
-        label = "修改",
-        onClick = onEdit,
-        primary = true,
-      )
-      ArchiveDialogAction(
-        label = "关闭",
-        onClick = onClose,
-        testTag = "card-modal-close",
-      )
-    },
-  ) {
-    Column(
-      modifier =
-        Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      Text(
-        text = item.contentType.label,
-        style = MaterialTheme.typography.labelMedium,
-        color = DetailCinnabar,
-      )
-      if (item.summary.isNotBlank()) {
-        Text(
-          text = item.summary,
-          style = MaterialTheme.typography.bodyMedium,
-          color = DetailInk,
-        )
-      }
-      if (item.contentType == ContentType.IMAGE_SCREENSHOT) {
-        if (item.sourceUrl != null) {
-          val path = item.sourceUrl!!
-          var bitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-          LaunchedEffect(path) {
-            bitmap =
-              withContext(Dispatchers.IO) {
-                try {
-                  BitmapFactory.decodeFile(path)?.asImageBitmap()
-                } catch (_: Exception) {
-                  null
-                }
-              }
-          }
-          bitmap?.let { bmp ->
-            Image(
-              bitmap = bmp,
-              contentDescription = item.title,
-              contentScale = ContentScale.FillWidth,
-              modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
-            )
-          }
-        }
-      }
-      if (!item.sourceUrl.isNullOrBlank()) {
-        val context = androidx.compose.ui.platform.LocalContext.current
-        Text(
-          text = item.sourceUrl,
-          style = MaterialTheme.typography.bodySmall,
-          color = DetailCinnabar,
-          modifier =
-            Modifier.clickable {
-              openKnowledgeItemSource(context, item)
-            },
-        )
-      }
-      if (item.fullText.isNotBlank() && item.fullText != item.summary) {
-        Text(
-          text = item.fullText,
-          style = MaterialTheme.typography.bodySmall,
-          color = DetailInk.copy(alpha = 0.72f),
-        )
-      }
-    }
-  }
-}
-
-private fun openKnowledgeItemSource(
-  context: android.content.Context,
-  item: KnowledgeItem,
-) {
-  val rawSource = item.sourceUrl?.trim().takeUnless { it.isNullOrBlank() } ?: return
-  if (item.contentType == ContentType.WEB_ARTICLE) {
-    openWebSource(context, rawSource)
-  } else {
-    openLocalSource(context, item, rawSource)
-  }
-}
-
-private fun openWebSource(
-  context: android.content.Context,
-  rawSource: String,
-) {
-  try {
-    val url =
-      if (rawSource.startsWith("http://") || rawSource.startsWith("https://")) {
-        rawSource
-      } else {
-        "https://$rawSource"
-      }
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(intent)
-  } catch (e: Exception) {
-    Log.e("DetailPane", "Failed to open URL: $rawSource", e)
-    Toast.makeText(context, "无法打开链接", Toast.LENGTH_SHORT).show()
-  }
-}
-
-private fun openLocalSource(
-  context: android.content.Context,
-  item: KnowledgeItem,
-  rawSource: String,
-) {
-  val file = File(rawSource)
-  if (!file.exists()) {
-    Toast.makeText(context, "文件不存在", Toast.LENGTH_SHORT).show()
-    return
-  }
-
-  try {
-    val uri =
-      FileProvider.getUriForFile(
-        context,
-        "${context.packageName}$FileProviderAuthoritySuffix",
-        file,
-      )
-    val intent =
-      Intent(Intent.ACTION_VIEW)
-        .setDataAndType(uri, mimeTypeFor(item, file))
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    val chooser =
-      Intent.createChooser(intent, "打开文件")
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    context.startActivity(chooser)
-  } catch (e: ActivityNotFoundException) {
-    Log.e("DetailPane", "No app can open file: $rawSource", e)
-    Toast.makeText(context, "无法打开文件", Toast.LENGTH_SHORT).show()
-  } catch (e: Exception) {
-    Log.e("DetailPane", "Failed to open file: $rawSource", e)
-    Toast.makeText(context, "无法打开文件", Toast.LENGTH_SHORT).show()
-  }
-}
-
-private fun mimeTypeFor(
-  item: KnowledgeItem,
-  file: File,
-): String {
-  val fileName = item.fileName ?: file.name
-  val extension = fileName.substringAfterLast('.', "").lowercase().takeIf { it.isNotBlank() }
-  val mimeFromExtension = extension?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
-  return mimeFromExtension
-    ?: when (item.documentFormat) {
-      DocumentFormat.PDF -> "application/pdf"
-      DocumentFormat.MARKDOWN -> "text/markdown"
-      DocumentFormat.TXT -> "text/plain"
-      DocumentFormat.DOCX ->
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      else -> if (item.contentType == ContentType.IMAGE_SCREENSHOT) "image/*" else "*/*"
-    }
 }
 
 @Composable

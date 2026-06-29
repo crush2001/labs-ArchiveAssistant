@@ -298,7 +298,7 @@ class ArchiveAssistantStateStore(
       state.copy(
         selectedPane = AppPane.TOPICS,
         selectedTopicId = null,
-        modalItem = null,
+        readingItem = null,
       )
   }
 
@@ -307,12 +307,12 @@ class ArchiveAssistantStateStore(
       state.copy(
         selectedPane = AppPane.MEMORIAL,
         selectedTopicId = null,
-        modalItem = null,
+        readingItem = null,
       )
   }
 
   fun openSettings() {
-    state = state.copy(selectedPane = AppPane.SETTINGS, modalItem = null)
+    state = state.copy(selectedPane = AppPane.SETTINGS, readingItem = null)
   }
 
   fun openCreateTopicDialog() {
@@ -455,13 +455,13 @@ class ArchiveAssistantStateStore(
   }
 
   fun deleteItem(itemId: String) {
-    val deletingModalItem = state.modalItem?.id == itemId
+    val deletingReadingItem = state.readingItem?.id == itemId
     state =
       state.copy(
         items = state.items.filterNot { it.id == itemId },
-        modalItem = if (deletingModalItem) null else state.modalItem,
+        readingItem = if (deletingReadingItem) null else state.readingItem,
         selectedPane =
-          if (deletingModalItem && state.selectedPane == AppPane.CARD_DETAIL)
+          if (deletingReadingItem && state.selectedPane == AppPane.ARTICLE_READER)
             state.selectedPane.let {
               if (state.selectedTopicId != null) AppPane.DETAIL else AppPane.TOPICS
             }
@@ -539,7 +539,8 @@ class ArchiveAssistantStateStore(
           },
         editingItem = null,
         editItemDialogValidationMessage = null,
-        modalItem = if (state.modalItem?.id == originalItem.id) updatedItem else state.modalItem,
+        readingItem =
+          if (state.readingItem?.id == originalItem.id) updatedItem else state.readingItem,
       )
     saveData()
   }
@@ -551,7 +552,7 @@ class ArchiveAssistantStateStore(
       state.copy(
         selectedPane = AppPane.DETAIL,
         selectedTopicId = topicId,
-        modalItem = null,
+        readingItem = null,
       )
   }
 
@@ -928,22 +929,22 @@ class ArchiveAssistantStateStore(
         items = state.items.filterNot { it.topicId == topicId },
         selectedPane = if (deletingActiveTopic) AppPane.TOPICS else state.selectedPane,
         selectedTopicId = if (deletingActiveTopic) null else state.selectedTopicId,
-        modalItem = state.modalItem?.takeUnless { it.topicId == topicId },
+        readingItem = state.readingItem?.takeUnless { it.topicId == topicId },
         topicValidationMessage = null,
       )
     saveData()
   }
 
-  fun openCardModal(itemId: String) {
+  fun openArticleReader(itemId: String) {
     val item = state.items.firstOrNull { it.id == itemId } ?: return
-    state = state.copy(selectedPane = AppPane.CARD_DETAIL, modalItem = item)
+    state = state.copy(selectedPane = AppPane.ARTICLE_READER, readingItem = item)
   }
 
-  fun closeCardModal() {
+  fun closeArticleReader() {
     state =
       state.copy(
         selectedPane = if (state.selectedTopicId == null) AppPane.TOPICS else AppPane.DETAIL,
-        modalItem = null,
+        readingItem = null,
       )
   }
 
@@ -1051,7 +1052,7 @@ class ArchiveAssistantStateStore(
         showClipboardDialog = false,
         selectedPane = AppPane.DETAIL,
         selectedTopicId = targetTopicId,
-        modalItem = null,
+        readingItem = null,
         addItemDialogVisible = true,
         addItemDialogValidationMessage = null,
         addItemDialogPrefill = prefill,

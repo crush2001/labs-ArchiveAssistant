@@ -40,7 +40,7 @@ import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
 import com.lyihub.archiveassistant.ui.screens.AddItemDialog
-import com.lyihub.archiveassistant.ui.screens.CardModal
+import com.lyihub.archiveassistant.ui.screens.ArticleMemorialReaderOverlay
 import com.lyihub.archiveassistant.ui.screens.ClipboardDialog
 import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
@@ -163,12 +163,10 @@ fun ArchiveAssistantApp(
       )
     }
 
-    state.modalItem?.let { item ->
-      CardModal(
+    state.readingItem?.let { item ->
+      ArticleMemorialReaderOverlay(
         item = item,
-        onClose = effectiveStateStore::closeCardModal,
-        onEdit = { effectiveStateStore.openEditItemDialog(item.id) },
-        onDelete = { effectiveStateStore.openDeleteItemConfirmDialog(item.id) },
+        onDismiss = effectiveStateStore::closeArticleReader,
       )
     }
 
@@ -624,7 +622,7 @@ private fun SinglePaneLayout(
           items = state.visibleSelectedTopicItems,
           searchQuery = state.homeSearchQuery,
           onBack = stateStore::closePanes,
-          onItemClick = stateStore::openCardModal,
+          onItemClick = stateStore::openArticleReader,
         )
       } else {
         HomePane(
@@ -666,15 +664,15 @@ private fun SinglePaneLayout(
         isBenchmarkRunning = state.isBenchmarkRunning,
       )
 
-    AppPane.CARD_DETAIL -> {
+    AppPane.ARTICLE_READER -> {
       val topic = state.selectedTopic
       if (topic != null) {
         DetailPane(
           topic = topic,
           items = state.visibleSelectedTopicItems,
           searchQuery = state.homeSearchQuery,
-          onBack = stateStore::closeCardModal,
-          onItemClick = stateStore::openCardModal,
+          onBack = stateStore::closeArticleReader,
+          onItemClick = stateStore::openArticleReader,
         )
       } else {
         HomePane(
@@ -748,7 +746,7 @@ private fun WideWorkspaceLayout(
             )
 
           AppPane.DETAIL,
-          AppPane.CARD_DETAIL -> {
+          AppPane.ARTICLE_READER -> {
             val topic = state.selectedTopic
             if (topic != null) {
               DetailPane(
@@ -756,7 +754,7 @@ private fun WideWorkspaceLayout(
                 items = state.visibleSelectedTopicItems,
                 searchQuery = state.homeSearchQuery,
                 onBack = stateStore::closePanes,
-                onItemClick = stateStore::openCardModal,
+                onItemClick = stateStore::openArticleReader,
                 showBackButton = false,
               )
             } else {
