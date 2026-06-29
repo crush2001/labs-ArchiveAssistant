@@ -2245,7 +2245,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
       }
     val titleLineGap = dp(5f)
-    val coverTitleLineGap = dp(18f)
+    val coverTitleLineGap = dp(24f)
     val titleText =
       ellipsizeVerticalText(
         text = dossier.title,
@@ -2259,7 +2259,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val groupWidth = titleColumnWidth + columnGap + coverColumnWidth
     val groupLeft = label.centerX() - groupWidth / 2f
     val coverTitleHeight = verticalTextHeight("奏章", paints.coverTitle, coverTitleLineGap)
-    val titleTop = innerLabel.top + dp(26f)
+    val titleHeight = verticalTextHeight(titleText, titlePaint, titleLineGap)
+    val titleTop = innerLabel.centerY() - titleHeight / 2f
     val coverTitleTop = innerLabel.centerY() - coverTitleHeight / 2f - dp(10f)
     drawVerticalText(
       canvas = canvas,
@@ -2549,6 +2550,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
         TextPaint(paints.title).apply {
           typeface = assets.songTypeface
           letterSpacing = 0.02f
+          textAlign = Paint.Align.LEFT
         }
       val titleWidth = (rect.width() - dp(108f)).roundToInt().coerceAtLeast(1)
       val titleLayout =

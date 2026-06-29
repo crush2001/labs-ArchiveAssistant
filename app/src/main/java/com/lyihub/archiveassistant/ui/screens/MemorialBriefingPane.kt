@@ -556,13 +556,13 @@ private fun MemorialWheelCover(
     ) {
       Text(
         text = departmentTitle,
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
         color = MemorialInk.copy(alpha = lerpFloat(0.0f, 0.82f, focus)),
         fontWeight = FontWeight.Normal,
         modifier =
           Modifier.align(Alignment.TopCenter)
             .offset(y = (-21).dp)
-            .requiredWidth(frameWidth * 2.7f)
+            .requiredWidth(frameWidth * 3.1f)
             .graphicsLayer { alpha = focus },
         textAlign = TextAlign.Center,
       )
