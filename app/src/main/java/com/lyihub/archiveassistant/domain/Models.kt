@@ -119,7 +119,6 @@ enum class AppPane {
   DETAIL,
   SETTINGS,
   CARD_DETAIL,
-  MANAGE,
 }
 
 data class ClassificationPayload(

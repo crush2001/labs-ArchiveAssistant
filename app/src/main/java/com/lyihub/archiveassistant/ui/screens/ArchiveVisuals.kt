@@ -10,18 +10,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.lyihub.archiveassistant.R
-import com.lyihub.archiveassistant.ui.theme.ImperialBronze
-import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
-import com.lyihub.archiveassistant.ui.theme.ImperialIvory
-import com.lyihub.archiveassistant.ui.theme.ImperialLightGold
-import com.lyihub.archiveassistant.ui.theme.ImperialParchment
-import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 
 internal data class FolderVisual(
   val description: String,
   @param:DrawableRes val imageRes: Int,
-  val background: Color,
-  val accent: Color,
 )
 
 internal data class ArchiveTileVisual(
@@ -85,56 +77,31 @@ internal val SearchTileVisual =
     borderColor = Color(0xFF3E3E46),
   )
 
-internal val HomeTileVisuals =
-  listOf(
-    ZhongshuTileVisual,
-    MenxiaTileVisual,
-    MemorialTileVisual,
-    ClipboardTileVisual,
-    SearchTileVisual,
-  )
-
-internal fun homeTileVisual(index: Int): ArchiveTileVisual {
-  return HomeTileVisuals[index.floorMod(HomeTileVisuals.size)]
-}
-
 internal val FolderVisuals =
   listOf(
     FolderVisual(
       description = "近期收藏与重点资料归档",
       imageRes = R.drawable.tsieina_department_li,
-      background = ImperialParchment,
-      accent = ImperialUmber,
     ),
     FolderVisual(
       description = "按主题收束同类资料",
       imageRes = R.drawable.tsieina_department_hu,
-      background = ImperialLightGold,
-      accent = ImperialCinnabar,
     ),
     FolderVisual(
       description = "保留可复查的摘录与来源",
       imageRes = R.drawable.tsieina_department_li2,
-      background = ImperialIvory,
-      accent = ImperialBronze,
     ),
     FolderVisual(
       description = "聚合技术、工具与实现线索",
       imageRes = R.drawable.tsieina_department_bing,
-      background = ImperialParchment,
-      accent = ImperialCinnabar,
     ),
     FolderVisual(
       description = "沉淀判断、风险与待复核内容",
       imageRes = R.drawable.tsieina_department_xing,
-      background = ImperialIvory,
-      accent = ImperialUmber,
     ),
     FolderVisual(
       description = "整理产品、设计与制作材料",
       imageRes = R.drawable.tsieina_department_gong,
-      background = ImperialLightGold,
-      accent = ImperialBronze,
     ),
   )
 
@@ -166,5 +133,3 @@ internal val MemorialCoverResources =
   )
 
 internal fun folderVisual(index: Int): FolderVisual = FolderVisuals[index % FolderVisuals.size]
-
-private fun Int.floorMod(modulus: Int): Int = ((this % modulus) + modulus) % modulus

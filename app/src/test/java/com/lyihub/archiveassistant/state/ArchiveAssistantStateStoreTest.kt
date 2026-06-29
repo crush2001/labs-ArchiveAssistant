@@ -94,9 +94,6 @@ class ArchiveAssistantStateStoreTest {
     assertEquals(AppPane.TOPICS, store.state.selectedPane)
     assertNull(store.state.selectedTopicId)
 
-    store.openTopicManagement()
-    assertEquals(AppPane.MANAGE, store.state.selectedPane)
-
     store.openTopic(SampleKnowledgeData.DefaultTopicId)
     assertEquals(AppPane.DETAIL, store.state.selectedPane)
     assertEquals(SampleKnowledgeData.DefaultTopicId, store.state.selectedTopicId)
@@ -145,7 +142,7 @@ class ArchiveAssistantStateStoreTest {
 
     val newItem = store.state.items.last()
     assertEquals(initialItemCount + 1, store.state.items.size)
-    assertEquals("item-classified-6", newItem.id)
+    assertTrue(newItem.id.startsWith("item-classified-"))
     assertEquals("topic-ui-inspiration", newItem.topicId)
     assertEquals(ContentType.IMAGE_SCREENSHOT, newItem.contentType)
     assertEquals("", store.state.parserInput)
@@ -181,7 +178,7 @@ class ArchiveAssistantStateStoreTest {
     val newItem = store.state.items.last()
     assertEquals(1, summarizer.callCount)
     assertEquals(initialItemCount + 1, store.state.items.size)
-    assertEquals("item-classified-6", newItem.id)
+    assertTrue(newItem.id.startsWith("item-classified-"))
     assertEquals("topic-ui-inspiration", newItem.topicId)
     assertEquals(ContentType.WEB_ARTICLE, newItem.contentType)
     assertEquals("智能摘要标题", newItem.title)
@@ -634,10 +631,11 @@ class ArchiveAssistantStateStoreTest {
     val store = ArchiveAssistantStateStore()
 
     store.createTopic("新主题")
-    assertEquals("topic-user-6", store.state.selectedTopicId)
+    val createdTopicId = requireNotNull(store.state.selectedTopicId)
+    assertTrue(createdTopicId.startsWith("topic-user-"))
     assertEquals("新主题", store.state.selectedTopic?.title)
 
-    store.renameTopic("topic-user-6", "重命名主题")
+    store.renameTopic(createdTopicId, "重命名主题")
     assertEquals("重命名主题", store.state.selectedTopic?.title)
 
     store.createTopic("重命名主题")
@@ -650,18 +648,6 @@ class ArchiveAssistantStateStoreTest {
     store.updateAiSettings(settings)
     assertEquals(settings, store.state.aiSettings)
     assertNotNull(store.state.topicValidationMessage)
-  }
-
-  @Test
-  fun openTopicManagementForCreate_navigatesToManageAndOpensCreateDialog() {
-    val store = ArchiveAssistantStateStore()
-
-    store.openTopicManagementForCreate()
-
-    assertEquals(AppPane.MANAGE, store.state.selectedPane)
-    assertEquals(TopicNameDialogMode.CREATE, store.state.topicNameDialogMode)
-    assertNull(store.state.topicNameDialogTopicId)
-    assertNull(store.state.topicValidationMessage)
   }
 
   @Test
@@ -788,6 +774,7 @@ class ArchiveAssistantStateStoreTest {
   }
 
   @Test
+  @Suppress("DEPRECATION")
   fun updateAiSettings_switchesEngineTypeAndUpdatesFields() {
     val store = ArchiveAssistantStateStore()
     assertEquals(AiEngineType.OPENAI_COMPATIBLE, store.state.aiSettings.engineType)

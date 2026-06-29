@@ -97,6 +97,7 @@ class AiEngineSettingsPreferencesTest {
   }
 
   @Test
+  @Suppress("DEPRECATION")
   fun legacyConfigMigration() {
     // Write only old keys — no ai_local_model_id or ai_local_backend_pref
     val preferences =

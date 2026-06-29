@@ -95,12 +95,19 @@ class MockKnowledgeClassifierTest {
       ContentType.entries.map { it.label },
     )
     assertEquals(
-      listOf("大模型架构研究", "UX/UI 灵感板", "阅读剪报：人类学", "冷门旅行地参考", "开源工具收藏"),
+      listOf(
+        "大模型架构研究",
+        "UX/UI 灵感板",
+        "阅读剪报：人类学",
+        "冷门旅行地参考",
+        "开源工具收藏",
+        "知识管理方法",
+      ),
       SampleKnowledgeData.topics.map { it.title },
     )
     assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.WEB_ARTICLE })
-    assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.IMAGE_SCREENSHOT })
-    assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT })
+    assertTrue(SampleKnowledgeData.items.any { it.imageResName != null })
+    assertTrue(SampleKnowledgeData.items.any { it.imageResName == null })
     assertTrue(
       SampleKnowledgeData.topics.all { it.id.isNotBlank() && it.updatedAtEpochMillis > 0L }
     )

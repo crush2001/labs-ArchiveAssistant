@@ -227,7 +227,7 @@ class ModelDownloadManagerTest {
 
           if (suspendAtHalf) {
             kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
-              resumeDownload = { continuation.resume(Unit) {} }
+              resumeDownload = { continuation.resume(Unit) { _, _, _ -> } }
             }
           }
 

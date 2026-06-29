@@ -185,7 +185,6 @@ private fun ColumnScope.HomeMosaic(
   )
   MinistryStampStack(
     searchQuery = searchQuery,
-    resultCount = folders.count { it.topic != null },
     folders = folders,
     onTopicSelected = onTopicSelected,
     onCreateTopic = onCreateTopic,
@@ -274,7 +273,6 @@ private fun HomeFeatureCell(
   ) {
     HomeOrnament(
       imageRes = ornamentRes,
-      tint = contentColor,
       modifier =
         Modifier.align(Alignment.CenterEnd)
           .offset(x = ornamentOffsetX, y = ornamentOffsetY)
@@ -423,7 +421,6 @@ private fun SearchCell(
   ) {
     HomeOrnament(
       imageRes = R.drawable.home_ornament_library,
-      tint = Color.White,
       modifier = Modifier.align(Alignment.CenterEnd).offset(x = 18.dp).size(112.dp),
       alpha = 0.66f,
     )
@@ -500,7 +497,6 @@ private fun MemorialCell(
   ) {
     HomeOrnament(
       imageRes = R.drawable.home_ornament_memorial,
-      tint = Color.White,
       modifier = Modifier.align(Alignment.CenterEnd).offset(x = 24.dp, y = (-18).dp).size(138.dp),
       alpha = 0.66f,
     )
@@ -525,7 +521,6 @@ private fun MemorialCell(
 @Composable
 private fun MinistryStampStack(
   searchQuery: String,
-  resultCount: Int,
   folders: List<DashboardFolder>,
   onTopicSelected: (String) -> Unit,
   onCreateTopic: () -> Unit,
@@ -852,7 +847,6 @@ private fun MinistryFoldSurface(
 @Composable
 private fun HomeOrnament(
   @DrawableRes imageRes: Int,
-  tint: Color,
   modifier: Modifier = Modifier,
   alpha: Float = 0.5f,
 ) {

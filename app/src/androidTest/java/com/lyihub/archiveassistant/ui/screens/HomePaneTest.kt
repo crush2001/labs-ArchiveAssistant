@@ -25,7 +25,6 @@ class HomePaneTest {
           itemsByTopic = SampleKnowledgeData.items.groupBy { it.topicId },
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},
@@ -35,7 +34,7 @@ class HomePaneTest {
     }
 
     composeTestRule.onNodeWithTag("clipboard-button").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("recent-topic-list").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("ministry-stamp-stack").assertIsDisplayed()
   }
 
   @Test
@@ -51,7 +50,6 @@ class HomePaneTest {
           itemsByTopic = emptyMap(),
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},
@@ -61,8 +59,8 @@ class HomePaneTest {
       }
     }
 
-    composeTestRule.onNodeWithTag("memorial-demo-button").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("memorial-demo-button").performClick()
+    composeTestRule.onNodeWithTag("memorial-entry-card").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("memorial-entry-card").performClick()
     assertEquals(true, memorialDemoCalled)
   }
 
@@ -79,7 +77,6 @@ class HomePaneTest {
           itemsByTopic = emptyMap(),
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},
@@ -103,7 +100,6 @@ class HomePaneTest {
           itemsByTopic = emptyMap(),
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},
@@ -128,7 +124,6 @@ class HomePaneTest {
           itemsByTopic = SampleKnowledgeData.items.groupBy { it.topicId },
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},
@@ -153,7 +148,6 @@ class HomePaneTest {
           itemsByTopic = emptyMap(),
           onTopicSelected = {},
           onOpenSettings = {},
-          onOpenManage = {},
           onCreateTopic = {},
           searchQuery = "",
           onSearchQueryChanged = {},

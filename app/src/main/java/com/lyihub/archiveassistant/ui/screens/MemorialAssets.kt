@@ -76,12 +76,8 @@ internal class MemorialAssets(context: Context) {
     )
 
   val heritageTypeface: Typeface =
-    runCatching {
-        Typeface.createFromAsset(context.assets, "fonts/ma_shan_zheng_regular.ttf")
-      }
-      .getOrElse {
-        Typeface.create(Typeface.SERIF, Typeface.NORMAL)
-      }
+    ResourcesCompat.getFont(context, R.font.ma_shan_zheng_regular)
+      ?: Typeface.create(Typeface.SERIF, Typeface.NORMAL)
 
   val stampTypeface: Typeface =
     ResourcesCompat.getFont(context, R.font.san_ji_xing_kai_jian_ti_cu) ?: heritageTypeface

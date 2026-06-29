@@ -44,7 +44,6 @@ import com.lyihub.archiveassistant.ui.screens.ClipboardDialog
 import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
 import com.lyihub.archiveassistant.ui.screens.HomePane
-import com.lyihub.archiveassistant.ui.screens.ManagePane
 import com.lyihub.archiveassistant.ui.screens.MemorialBriefingPane
 import com.lyihub.archiveassistant.ui.screens.MemorialDemoOverlay
 import com.lyihub.archiveassistant.ui.screens.SettingsPane
@@ -654,26 +653,6 @@ private fun SinglePaneLayout(
         isBenchmarkRunning = state.isBenchmarkRunning,
       )
 
-    AppPane.MANAGE ->
-      ManagePane(
-        topics = state.topics,
-        itemsByTopic = state.itemsByTopic,
-        onBack = stateStore::closePanes,
-        onTopicSelected = stateStore::openTopic,
-        onCreateTopic = stateStore::openCreateTopicDialog,
-        onRenameTopic = stateStore::openRenameTopicDialog,
-        onDeleteTopic = stateStore::openDeleteConfirmDialog,
-        onConfirmCreateTopic = stateStore::confirmCreateTopic,
-        onConfirmRenameTopic = stateStore::confirmRenameTopic,
-        onConfirmDeleteTopic = stateStore::confirmDeleteTopic,
-        onCloseTopicNameDialog = stateStore::closeTopicNameDialog,
-        onCloseDeleteConfirmDialog = stateStore::closeDeleteConfirmDialog,
-        topicNameDialogMode = state.topicNameDialogMode,
-        topicNameDialogTopicId = state.topicNameDialogTopicId,
-        topicValidationMessage = state.topicValidationMessage,
-        deleteConfirmTopicId = state.deleteConfirmTopicId,
-      )
-
     AppPane.CARD_DETAIL -> {
       val topic = state.selectedTopic
       if (topic != null) {
@@ -790,12 +769,6 @@ private fun WideWorkspaceLayout(
               localModelState = state.localModelState,
               benchmarkResult = state.benchmarkResult,
               isBenchmarkRunning = state.isBenchmarkRunning,
-            )
-
-          AppPane.MANAGE ->
-            MemorialBriefingPane(
-              pendingCount = pendingMemorialCount(state),
-              onOpenMemorialDemo = onOpenMemorialDemo,
             )
         }
       }

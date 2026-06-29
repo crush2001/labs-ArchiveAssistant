@@ -315,15 +315,6 @@ class ArchiveAssistantStateStore(
     state = state.copy(selectedPane = AppPane.SETTINGS, modalItem = null)
   }
 
-  fun openTopicManagement() {
-    state = state.copy(selectedPane = AppPane.MANAGE, selectedTopicId = null, modalItem = null)
-  }
-
-  fun openTopicManagementForCreate() {
-    state = state.copy(selectedPane = AppPane.MANAGE, selectedTopicId = null, modalItem = null)
-    openCreateTopicDialog()
-  }
-
   fun openCreateTopicDialog() {
     state =
       state.copy(
