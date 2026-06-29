@@ -396,9 +396,9 @@ private fun PalaceDashboardBlock(
           modifier = Modifier.weight(1f).height(searchRowHeight),
           onClick = onOpenClipboard,
           testTag = "clipboard-button",
-          ornamentSize = 82.dp,
-          ornamentOffsetX = (-2).dp,
-          ornamentOffsetY = 2.dp,
+          ornamentSize = 68.dp,
+          ornamentOffsetX = 0.dp,
+          ornamentOffsetY = 0.dp,
           ornamentAlignment = Alignment.TopEnd,
           ornamentTint = Color.White,
         )
@@ -703,7 +703,7 @@ private fun MinistryFoldCard(
   compact: Boolean,
 ) {
   val enabled = folder.topic != null
-  val imageSize = if (compact) 52.dp else 78.dp
+  val imageSize = if (compact) 60.dp else 86.dp
   val titleStyle =
     if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge
   val summaryStyle =
@@ -724,9 +724,9 @@ private fun MinistryFoldCard(
         Image(
           painter = painterResource(id = visual.imageRes),
           contentDescription = null,
-          modifier = Modifier.align(Alignment.TopEnd).offset(x = 0.dp, y = 0.dp).size(imageSize),
+          modifier = Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(imageSize),
           contentScale = ContentScale.Fit,
-          alpha = 0.82f,
+          alpha = 0.84f,
         )
         Text(
           text =
@@ -820,13 +820,7 @@ private fun MinistryFoldSurface(
   showEndFold: Boolean = false,
   content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
-  Box(
-    modifier =
-      modifier
-        .shadow(if (showEndFold) 5.dp else 0.dp, shape, clip = false)
-        .clip(shape)
-        .background(Color.White, shape)
-  ) {
+  Box(modifier = modifier.clip(shape).background(Color.White, shape)) {
     Image(
       painter = painterResource(id = R.drawable.home_search_tile),
       contentDescription = null,
@@ -844,6 +838,32 @@ private fun MinistryFoldSurface(
               0.88f to Color.Black.copy(alpha = 0.045f * foldIntensity * 6f),
               0.95f to Color.White.copy(alpha = 0.34f * foldIntensity * 3f),
               1f to Color.Black.copy(alpha = 0.08f * foldIntensity * 5f),
+            )
+          )
+    )
+    Box(
+      modifier =
+        Modifier.align(Alignment.TopStart)
+          .fillMaxWidth()
+          .height(7.dp)
+          .background(
+            Brush.verticalGradient(
+              0f to Color.Black.copy(alpha = 0.07f * foldIntensity * 4.5f),
+              0.55f to Color.White.copy(alpha = 0.18f * foldIntensity * 3f),
+              1f to Color.Transparent,
+            )
+          )
+    )
+    Box(
+      modifier =
+        Modifier.align(Alignment.BottomStart)
+          .fillMaxWidth()
+          .height(10.dp)
+          .background(
+            Brush.verticalGradient(
+              0f to Color.Transparent,
+              0.55f to Color.Black.copy(alpha = 0.05f * foldIntensity * 4f),
+              1f to Color.Black.copy(alpha = 0.1f * foldIntensity * 4f),
             )
           )
     )

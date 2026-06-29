@@ -81,7 +81,7 @@ internal val FolderVisuals =
   listOf(
     FolderVisual(
       description = "近期收藏与重点资料归档",
-      imageRes = R.drawable.tsieina_department_pattern_9610,
+      imageRes = R.drawable.tsieina_department_pattern_9617,
     ),
     FolderVisual(
       description = "按主题收束同类资料",
@@ -93,7 +93,7 @@ internal val FolderVisuals =
     ),
     FolderVisual(
       description = "聚合技术、工具与实现线索",
-      imageRes = R.drawable.tsieina_department_pattern_9618,
+      imageRes = R.drawable.tsieina_department_pattern_10412,
     ),
     FolderVisual(
       description = "沉淀判断、风险与待复核内容",
@@ -101,7 +101,7 @@ internal val FolderVisuals =
     ),
     FolderVisual(
       description = "整理产品、设计与制作材料",
-      imageRes = R.drawable.tsieina_department_pattern_9617,
+      imageRes = R.drawable.tsieina_department_pattern_9610,
     ),
   )
 

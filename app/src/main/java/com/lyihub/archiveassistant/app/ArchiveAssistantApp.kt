@@ -33,6 +33,7 @@ import com.lyihub.archiveassistant.domain.AiEngineSettings
 import com.lyihub.archiveassistant.domain.AppPane
 import com.lyihub.archiveassistant.domain.ContentType
 import com.lyihub.archiveassistant.domain.DocumentFormat
+import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.service.LocalInferenceConnection
 import com.lyihub.archiveassistant.state.ArchiveAssistantState
 import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
@@ -562,8 +563,19 @@ private fun pendingMemorialCount(state: ArchiveAssistantState): Int = TOTAL_PEND
 
 private fun fixedPendingMemorialItems(state: ArchiveAssistantState) =
   state.topics
-    .mapNotNull { topic -> state.itemsByTopic[topic.id]?.firstOrNull() }
+    .mapNotNull { topic -> state.itemsByTopic[topic.id]?.bestPendingMemorialItem() }
     .take(TOTAL_PENDING_MEMORIALS)
+
+private fun List<KnowledgeItem>.bestPendingMemorialItem(): KnowledgeItem? {
+  return minWithOrNull(
+    compareByDescending<KnowledgeItem> { item -> item.imageResName != null }
+      .thenBy { item -> if (item.title.contains(AsciiLetterRegex)) 1 else 0 }
+      .thenBy { item -> item.title.length }
+      .thenByDescending { item -> item.createdAtEpochMillis }
+  )
+}
+
+private val AsciiLetterRegex = Regex("[A-Za-z]")
 
 @Composable
 private fun SinglePaneLayout(
@@ -598,6 +610,7 @@ private fun SinglePaneLayout(
     AppPane.MEMORIAL ->
       MemorialBriefingPane(
         pendingCount = pendingMemorialCount(state),
+        briefingItems = state.items,
         onOpenMemorialDemo = onOpenMemorialDemo,
         onBack = stateStore::closePanes,
         showBackButton = true,
@@ -721,12 +734,14 @@ private fun WideWorkspaceLayout(
           AppPane.TOPICS ->
             MemorialBriefingPane(
               pendingCount = pendingMemorialCount(state),
+              briefingItems = state.items,
               onOpenMemorialDemo = onOpenMemorialDemo,
             )
 
           AppPane.MEMORIAL ->
             MemorialBriefingPane(
               pendingCount = pendingMemorialCount(state),
+              briefingItems = state.items,
               onOpenMemorialDemo = onOpenMemorialDemo,
               onBack = stateStore::closePanes,
               showBackButton = false,
@@ -747,6 +762,7 @@ private fun WideWorkspaceLayout(
             } else {
               MemorialBriefingPane(
                 pendingCount = 0,
+                briefingItems = state.items,
                 onOpenMemorialDemo = onOpenMemorialDemo,
               )
             }

@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lyihub.archiveassistant.R
+import com.lyihub.archiveassistant.domain.KnowledgeItem
 import com.lyihub.archiveassistant.ui.components.XuanPaperBackground
 import com.lyihub.archiveassistant.ui.theme.ImperialBronze
 import com.lyihub.archiveassistant.ui.theme.ImperialCinnabar
@@ -106,15 +107,19 @@ private val BriefingSamples =
     ),
   )
 
+private const val BriefingSampleSeed = 20260629
+
 @Composable
 fun MemorialBriefingPane(
   pendingCount: Int,
+  briefingItems: List<KnowledgeItem>,
   onOpenMemorialDemo: () -> Unit,
   modifier: Modifier = Modifier,
   showBackButton: Boolean = false,
   onBack: (() -> Unit)? = null,
 ) {
   var activeBriefIndex by remember { mutableIntStateOf(0) }
+  val briefingSamples = remember(briefingItems) { briefingSamplesFor(briefingItems) }
   Box(
     modifier =
       modifier.fillMaxSize().background(ImperialIvory).clickable(onClick = onOpenMemorialDemo)
@@ -127,6 +132,7 @@ fun MemorialBriefingPane(
     )
     BriefingCopy(
       activeIndex = activeBriefIndex,
+      samples = briefingSamples,
       showBackButton = showBackButton,
       onBack = onBack,
       modifier =
@@ -456,7 +462,7 @@ private fun MemorialWheelInnerDisc(
   modifier: Modifier = Modifier,
 ) {
   val diameter = radius * 2f
-  val iconSize = 56.dp
+  val iconSize = 64.dp
   Box(modifier = modifier) {
     Box(
       modifier =
@@ -468,7 +474,7 @@ private fun MemorialWheelInnerDisc(
       Column(
         modifier = Modifier.align(Alignment.Center).offset(x = contentOffsetX),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
       ) {
         Image(
           painter = painterResource(id = R.drawable.memorial_touch_book),
@@ -592,8 +598,8 @@ private fun MemorialCoverLabel(
 ) {
   val labelWidth = lerpFloat(0.48f, 0.5f, focus)
   val labelHeight = lerpFloat(0.56f, 0.58f, focus)
-  val cornerSize = lerpDp(8.dp, 11.dp, focus)
-  val cornerAlpha = lerpFloat(0.5f, 0.72f, focus)
+  val cornerSize = lerpDp(11.dp, 15.dp, focus)
+  val cornerAlpha = lerpFloat(0.72f, 0.94f, focus)
   BoxWithConstraints(modifier = modifier) {
     Box(
       modifier =
@@ -628,16 +634,12 @@ private fun MemorialCoverLabel(
         contentDescription = null,
         modifier = Modifier.align(Alignment.TopStart).size(cornerSize),
         alpha = cornerAlpha,
-        colorFilter =
-          ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
       )
       Image(
         painter = painterResource(id = R.drawable.memorial_cover_corner),
         contentDescription = null,
         modifier = Modifier.align(Alignment.TopEnd).size(cornerSize).graphicsLayer(rotationZ = 90f),
         alpha = cornerAlpha,
-        colorFilter =
-          ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
       )
       Image(
         painter = painterResource(id = R.drawable.memorial_cover_corner),
@@ -645,8 +647,6 @@ private fun MemorialCoverLabel(
         modifier =
           Modifier.align(Alignment.BottomEnd).size(cornerSize).graphicsLayer(rotationZ = 180f),
         alpha = cornerAlpha,
-        colorFilter =
-          ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
       )
       Image(
         painter = painterResource(id = R.drawable.memorial_cover_corner),
@@ -654,8 +654,6 @@ private fun MemorialCoverLabel(
         modifier =
           Modifier.align(Alignment.BottomStart).size(cornerSize).graphicsLayer(rotationZ = 270f),
         alpha = cornerAlpha,
-        colorFilter =
-          ColorFilter.tint(ImperialCinnabar.copy(alpha = lerpFloat(0.46f, 0.7f, focus))),
       )
       Column(
         modifier = Modifier.align(Alignment.Center),
@@ -677,14 +675,15 @@ private fun MemorialCoverLabel(
 @Composable
 private fun BriefingCopy(
   activeIndex: Int,
+  samples: List<BriefingSample>,
   showBackButton: Boolean,
   onBack: (() -> Unit)?,
   modifier: Modifier = Modifier,
 ) {
-  val sample = BriefingSamples[floorMod(activeIndex, BriefingSamples.size)]
+  val sample = samples[floorMod(activeIndex, samples.size)]
   Column(
     modifier = modifier,
-    verticalArrangement = Arrangement.spacedBy(12.dp),
+    verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
     PaneHeroHeader(
       title = "奏章",
@@ -706,9 +705,9 @@ private fun MemorialBriefCard(
   modifier: Modifier = Modifier,
 ) {
   MemorialFramedPaperPanel(
-    modifier = modifier.fillMaxWidth().heightIn(min = 76.dp),
+    modifier = modifier.fillMaxWidth().heightIn(min = 70.dp),
     cornerSize = 12.dp,
-    contentPadding = 13.dp,
+    contentPadding = 11.dp,
   ) {
     AnimatedContent(
       targetState = sample,
@@ -720,7 +719,7 @@ private fun MemorialBriefCard(
     ) { activeSample ->
       Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
       ) {
         Text(
           text = activeSample.title,
@@ -734,13 +733,29 @@ private fun MemorialBriefCard(
           text = activeSample.body,
           style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
           color = MemorialInk.copy(alpha = 0.78f),
-          lineHeight = 18.sp,
+          lineHeight = 17.sp,
           maxLines = 2,
           overflow = TextOverflow.Ellipsis,
         )
       }
     }
   }
+}
+
+private fun briefingSamplesFor(items: List<KnowledgeItem>): List<BriefingSample> {
+  val samples =
+    items
+      .asSequence()
+      .filter { item -> item.title.isNotBlank() && item.summary.isNotBlank() }
+      .shuffled(Random(BriefingSampleSeed))
+      .map { item ->
+        BriefingSample(
+          title = item.title,
+          body = item.summary,
+        )
+      }
+      .toList()
+  return samples.ifEmpty { BriefingSamples }
 }
 
 @Composable

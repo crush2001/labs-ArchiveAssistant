@@ -60,6 +60,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private val coverTextureSrcRect = Rect()
   private val articleImageSrcRect = Rect()
   private val paperClipPath = Path()
+  private val tagChipPath = Path()
 
   private var velocityTracker: VelocityTracker? = null
   private var lastTouchX = 0f
@@ -1094,6 +1095,14 @@ internal class MemorialFoldView(context: Context) : View(context) {
         clippedCircle = true,
       )
 
+    val completionTitlePaint =
+      TextPaint(paints.title).apply {
+        textSize = sp(44f)
+        color = AndroidColor.rgb(72, 43, 31)
+        textAlign = Paint.Align.CENTER
+        typeface = assets.stampTypeface
+        letterSpacing = 0.08f
+      }
     val completionBodyPaint =
       TextPaint(paints.quote).apply {
         textSize = sp(22f)
@@ -1102,15 +1111,31 @@ internal class MemorialFoldView(context: Context) : View(context) {
         typeface = assets.songTypeface
       }
 
-    val body = "六奏皆经圣裁，御前案牍暂清。伏愿皇上少憩片刻，以养宸躬。"
+    val title = "诸折皆毕"
+    val body = "伏愿皇上少憩片刻，以养宸躬。"
     val maxTextWidth = rect.width() * 0.74f
+    val fittedTitle =
+      TextUtils.ellipsize(title, completionTitlePaint, maxTextWidth, TextUtils.TruncateAt.END)
     val fittedBody =
       TextUtils.ellipsize(body, completionBodyPaint, maxTextWidth, TextUtils.TruncateAt.END)
+    val titleHeight = completionTitlePaint.fontMetrics.run { descent - ascent }
+    val bodyHeight = completionBodyPaint.fontMetrics.run { descent - ascent }
+    val gap = dp(18f)
+    val groupCenterY = rect.centerY() - dp(16f)
+    val groupTop = groupCenterY - (titleHeight + gap + bodyHeight) / 2f
+    drawCenteredText(
+      canvas = canvas,
+      text = fittedTitle.toString(),
+      x = rect.centerX(),
+      baseline = groupTop + titleHeight / 2f + textCenterOffset(completionTitlePaint),
+      paint = completionTitlePaint,
+    )
     drawCenteredText(
       canvas = canvas,
       text = fittedBody.toString(),
       x = rect.centerX(),
-      baseline = rect.centerY() + textCenterOffset(completionBodyPaint) - dp(18f),
+      baseline =
+        groupTop + titleHeight + gap + bodyHeight / 2f + textCenterOffset(completionBodyPaint),
       paint = completionBodyPaint,
     )
     drawHorizontalRetreatStamp(canvas, rect.centerX(), rect.bottom - rect.height() * 0.29f)
@@ -2292,38 +2317,70 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val tagPaint =
       TextPaint(paints.itemMeta).apply {
         typeface = assets.songTypeface
-        textSize = sp(12f)
-        color = MEMORIAL_INK_BROWN
+        textSize = sp(11f)
+        color = AndroidColor.WHITE
         textAlign = Paint.Align.LEFT
       }
-    val rowHeight = dp(24f)
+    val rowHeight = dp(22f)
     val horizontalGap = dp(6f)
-    val verticalGap = dp(7f)
+    val verticalGap = dp(6f)
     var x = left
     var y = top
-    tags.forEach { tag ->
+    tags.forEachIndexed { index, tag ->
       val textWidth = tagPaint.measureText(tag)
-      val chipWidth = (textWidth + dp(16f)).coerceAtMost(maxWidth)
+      val chipWidth = (textWidth + dp(15f)).coerceAtMost(maxWidth)
       if (x > left && x + chipWidth > left + maxWidth) {
         x = left
         y += rowHeight + verticalGap
       }
       val chip = RectF(x, y, x + chipWidth, y + rowHeight)
-      paints.article.color = AndroidColor.argb(42, 166, 126, 45)
-      canvas.drawRoundRect(chip, dp(4f), dp(4f), paints.article)
-      paints.article.color = AndroidColor.WHITE
-      paints.gold.alpha = 138
-      canvas.drawRoundRect(chip, dp(4f), dp(4f), paints.gold)
-      paints.gold.alpha = 255
+      drawDirectoryTagChip(canvas, chip, tagChipColor(tag, index))
       canvas.drawText(
         tag,
-        chip.left + dp(8f),
+        chip.left + dp(7.5f),
         chip.centerY() + textCenterOffset(tagPaint),
         tagPaint,
       )
       x += chipWidth + horizontalGap
     }
     return y + rowHeight
+  }
+
+  private fun drawDirectoryTagChip(canvas: Canvas, rect: RectF, color: Int) {
+    val notch = min(rect.width(), rect.height()) * 0.26f
+    tagChipPath.reset()
+    tagChipPath.moveTo(rect.left + notch, rect.top)
+    tagChipPath.lineTo(rect.right - notch, rect.top)
+    tagChipPath.lineTo(rect.right, rect.top + notch)
+    tagChipPath.lineTo(rect.right, rect.bottom - notch)
+    tagChipPath.lineTo(rect.right - notch, rect.bottom)
+    tagChipPath.lineTo(rect.left + notch, rect.bottom)
+    tagChipPath.lineTo(rect.left, rect.bottom - notch)
+    tagChipPath.lineTo(rect.left, rect.top + notch)
+    tagChipPath.close()
+    paints.article.color = color
+    canvas.drawPath(tagChipPath, paints.article)
+  }
+
+  private fun tagChipColor(tag: String, index: Int): Int {
+    val palette =
+      intArrayOf(
+        AndroidColor.rgb(184, 62, 47),
+        AndroidColor.rgb(139, 101, 74),
+        AndroidColor.rgb(209, 163, 107),
+        AndroidColor.rgb(230, 93, 63),
+        AndroidColor.rgb(156, 74, 55),
+        AndroidColor.rgb(62, 62, 70),
+        AndroidColor.rgb(120, 171, 204),
+        AndroidColor.rgb(111, 141, 114),
+      )
+    val paletteIndex = positiveModulo(tag.hashCode() + index, palette.size)
+    return palette[paletteIndex]
+  }
+
+  private fun positiveModulo(value: Int, modulo: Int): Int {
+    if (modulo == 0) return 0
+    return ((value % modulo) + modulo) % modulo
   }
 
   private fun drawArticlePreviewImage(

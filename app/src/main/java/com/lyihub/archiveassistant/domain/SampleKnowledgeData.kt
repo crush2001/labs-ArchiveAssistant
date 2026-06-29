@@ -2,7 +2,7 @@ package com.lyihub.archiveassistant.domain
 
 object SampleKnowledgeData {
   const val DefaultTopicId = "topic-ai-architecture"
-  const val DemoDataVersion = 7
+  const val DemoDataVersion = 8
 
   val topics: List<Topic> =
     listOf(
@@ -90,8 +90,8 @@ object SampleKnowledgeData {
       demoItem(
         id = "ai-007-moe-36kr",
         topicId = DefaultTopicId,
-        title = "一文看懂 MoE 混合专家大模型",
-        summary = "用更通俗的方式解释 MoE 的历史、专家网络和路由机制。",
+        title = "混合专家模型入门",
+        summary = "用更通俗的方式解释混合专家模型的历史、专家网络和路由机制。",
         tags = listOf("MoE", "专家模型", "通俗解释"),
         sourceTitle = "36氪《天工一刻 | 一文看懂MoE混合专家大模型》",
         sourceUrl = "https://36kr.com/p/2764338482988807",
@@ -323,7 +323,8 @@ object SampleKnowledgeData {
         tags = listOf("数字人类学", "平台", "田野"),
         sourceTitle = "澎湃新闻思想市场数字人类学文章",
         sourceUrl = "https://www.thepaper.cn/newsDetail_forward_26661183",
-        body = "这类理论文章通常没有文章配图，适合以纯文本方式进入资料库。它可用于解释：论坛、弹幕、群聊和推荐系统也能成为观察社会关系的现场。",
+        body = "这类理论文章可用于解释：论坛、弹幕、群聊和推荐系统也能成为观察社会关系的现场。来源页配图已缓存到本地，用于奏章批阅演示。",
+        imageResName = "article_anth_001_digital_anthropology",
         dayOffset = 25,
       ),
       demoItem(
@@ -589,7 +590,7 @@ object SampleKnowledgeData {
       demoItem(
         id = "tool-003-logseq",
         topicId = "topic-open-source-tools",
-        title = "Logseq 使用心得分享",
+        title = "大纲笔记使用心得",
         summary = "大纲式笔记、块引用和日记流适合碎片记录与长期连接。",
         tags = listOf("Logseq", "大纲", "开源"),
         sourceTitle = "少数派 Logseq 使用心得",
