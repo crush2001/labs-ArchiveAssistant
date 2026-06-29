@@ -99,7 +99,7 @@ fun HomePane(
                             .testTag("home-search-input"),
                         placeholder = {
                             Text(
-                                text = "搜索主题或资料...",
+                                text = "朕要找...",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         },
@@ -189,16 +189,11 @@ private fun ParserSection(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
         ) {
-            Text(
-                text = "支持多模态解析",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextActionButton(
-                    label = "剪切板",
+                    label = "宣拾遗",
                     onClick = onOpenClipboard,
                     testTag = "clipboard-button",
                 )

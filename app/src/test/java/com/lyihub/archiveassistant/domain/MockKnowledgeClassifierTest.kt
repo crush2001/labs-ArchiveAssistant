@@ -125,6 +125,18 @@ class MockKnowledgeClassifierTest {
         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT })
         assertTrue(SampleKnowledgeData.topics.all { it.id.isNotBlank() && it.updatedAtEpochMillis > 0L })
         assertTrue(SampleKnowledgeData.items.all { it.id.isNotBlank() && it.createdAtEpochMillis > 0L })
+        SixMinistry.entries.forEach { ministry ->
+            assertTrue(SampleKnowledgeData.items.count { it.topicId == ministry.id } >= 8)
+        }
+        assertTrue(SampleKnowledgeData.items.none { it.sourceUrl?.contains("example.com") == true })
+        val documentItems = SampleKnowledgeData.items.filter { it.contentType == ContentType.DOCUMENT }
+        val imageItems = SampleKnowledgeData.items.filter { it.contentType == ContentType.IMAGE_SCREENSHOT }
+        assertTrue(documentItems.isNotEmpty())
+        assertTrue(imageItems.isNotEmpty())
+        assertTrue(documentItems.all { it.fileName?.isNotBlank() == true })
+        assertTrue(imageItems.all { it.fileName?.isNotBlank() == true })
+        assertTrue(documentItems.none { it.sourceUrl?.startsWith("http") == true })
+        assertTrue(imageItems.none { it.sourceUrl?.startsWith("http") == true })
     }
 
     @Test

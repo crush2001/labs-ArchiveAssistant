@@ -78,7 +78,7 @@ class ArchiveAssistantStateStore(
         ?: localLlmEngine?.let(::LocalLlmSmartSummarizer)
 
     var state: ArchiveAssistantState by mutableStateOf(
-        resolveMockImagePaths(initialState)
+        resolveMockResourcePaths(initialState)
     )
         private set
 
@@ -104,14 +104,15 @@ class ArchiveAssistantStateStore(
                 AppDataPreferences.DecodeResult.Missing -> sixMinistryTopics
                 is AppDataPreferences.DecodeResult.Corrupt -> return@launch
             }
-            val persistedItems = when (val items = snapshot.items) {
+            val storedItems = when (val items = snapshot.items) {
                 is AppDataPreferences.DecodeResult.Valid -> normalizeItemTopicIds(items.value)
                 AppDataPreferences.DecodeResult.Missing -> emptyList()
                 is AppDataPreferences.DecodeResult.Corrupt -> emptyList()
             }
+            val persistedItems = mergeBuiltInSampleItems(storedItems)
             if (persistedTopics.isEmpty() && persistedItems.isEmpty()) return@launch
 
-            val restoredState = resolveMockImagePaths(
+            val restoredState = resolveMockResourcePaths(
                 state.copy(
                     topics = persistedTopics,
                     items = persistedItems,
@@ -120,6 +121,9 @@ class ArchiveAssistantStateStore(
             state = restoredState
             nextTopicIndex = deriveNextTopicIndex(restoredState.topics)
             nextItemIndex = deriveNextItemIndex(restoredState.items)
+            if (persistedItems != storedItems) {
+                persistData(persistedTopics, persistedItems)
+            }
         }
     }
 
@@ -139,6 +143,12 @@ class ArchiveAssistantStateStore(
             val resolvedTopicId = resolveTopicId(item.topicId)
             if (item.topicId == resolvedTopicId) item else item.copy(topicId = resolvedTopicId)
         }
+    }
+
+    private fun mergeBuiltInSampleItems(items: List<KnowledgeItem>): List<KnowledgeItem> {
+        val existingIds = items.mapTo(mutableSetOf()) { it.id }
+        val missingSamples = SampleKnowledgeData.items.filter { existingIds.add(it.id) }
+        return items + missingSamples
     }
 
     private fun saveAiSettings() {
@@ -220,18 +230,40 @@ class ArchiveAssistantStateStore(
         LocalModelStatus.STOPPING,
     )
 
-    private fun resolveMockImagePaths(state: ArchiveAssistantState): ArchiveAssistantState {
+    private fun resolveMockResourcePaths(state: ArchiveAssistantState): ArchiveAssistantState {
         val context = appContext ?: return state
         val mapping = mapOf(
-            "item-transformer-diagram" to "transformer_architecture",
+            "item-transformer-diagram" to MockResource("transformer_architecture", "drawable", "transformer_architecture.png"),
+            "item-justice-sspai-bill-screenshots" to MockResource("mock_alipay_sticker_noise", "drawable", "mock_alipay_sticker_noise.png"),
+            "item-treasury-python-bill-report" to MockResource("mock_alipay_wechat_finance", "raw", "alipay-wechat-finance.md"),
+            "item-treasury-bill-books" to MockResource("mock_bill_books_readme", "raw", "Bill_books_README.md"),
+            "item-rites-d2l" to MockResource("mock_d2l_zh_pytorch", "raw", "d2l-zh-pytorch.pdf"),
+            "item-rites-pumpkin-book" to MockResource("mock_pumpkin_book", "raw", "pumpkin-book.pdf"),
+            "item-military-health-coach" to MockResource("mock_health_coach_readme", "raw", "health-coach_README.md"),
+            "item-military-ai-health-vault" to MockResource("mock_ai_health_vault_readme_cn", "raw", "ai-health-vault_README_CN.md"),
+            "item-justice-bill-filter-rules" to MockResource("mock_bill_filter_rules", "raw", "bill-filter-rules.md"),
+            "item-works-health-agent-repo" to MockResource("mock_xiaoka_health_agent_readme", "raw", "xiaoka-health-agent_README.md"),
+            "item-officials-contact-card-screenshot" to MockResource("mock_supplier_contact_card", "drawable", "supplier-contact-card.png"),
+            "item-officials-team-roster" to MockResource("mock_studio_team_roster", "raw", "studio-team-roster.md"),
+            "item-treasury-cloud-api-bill" to MockResource("mock_cloud_api_bill", "drawable", "cloud-api-bill.png"),
+            "item-treasury-quarterly-budget" to MockResource("mock_studio_quarterly_budget", "raw", "studio-quarterly-budget.md"),
+            "item-rites-nvidia-blackwell" to MockResource("mock_nvidia_blackwell_architecture", "raw", "nvidia-blackwell-architecture.pdf"),
+            "item-rites-moe-paper" to MockResource("mock_switch_transformer_moe", "raw", "switch-transformer-moe.pdf"),
+            "item-rites-hdr-color-standard" to MockResource("mock_hdr_color_management_notes", "raw", "hdr-color-management-notes.md"),
+            "item-military-smartwatch-weekly" to MockResource("mock_smartwatch_weekly_health", "drawable", "smartwatch-weekly-health.png"),
+            "item-military-zep-memory-notes" to MockResource("mock_zep_memory_prompt_notes", "raw", "zep-memory-prompt-notes.md"),
+            "item-justice-gb-headlamp-standard" to MockResource("mock_gb_19152_2025_headlamp", "raw", "gb-19152-2025-headlamp.pdf"),
+            "item-justice-ai-hackathon-rules" to MockResource("mock_ai_hackathon_rules", "raw", "ai-hackathon-rules.md"),
+            "item-justice-low-confidence-quarantine" to MockResource("mock_low_confidence_quarantine", "raw", "low-confidence-quarantine.md"),
+            "item-works-vivo-fold-script" to MockResource("mock_vivo_x_fold_video_script", "raw", "vivo-x-fold-video-script.md"),
         )
         val itemsDir = File(context.filesDir, "items").also { it.mkdirs() }
         return state.copy(
             items = state.items.map { item ->
-                val drawableName = mapping[item.id] ?: return@map item
-                val dest = File(itemsDir, "$drawableName.png")
+                val resource = mapping[item.id] ?: return@map item
+                val dest = File(itemsDir, resource.outputFileName)
                 if (!dest.exists()) {
-                    val resId = context.resources.getIdentifier(drawableName, "drawable", context.packageName)
+                    val resId = context.resources.getIdentifier(resource.name, resource.type, context.packageName)
                     if (resId != 0) {
                         context.resources.openRawResource(resId).use { input ->
                             dest.outputStream().use { output -> input.copyTo(output) }
@@ -242,6 +274,12 @@ class ArchiveAssistantStateStore(
             }
         )
     }
+
+    private data class MockResource(
+        val name: String,
+        val type: String,
+        val outputFileName: String,
+    )
 
     private fun deriveNextTopicIndex(topics: List<Topic>): Int {
         var maxIdx = -1

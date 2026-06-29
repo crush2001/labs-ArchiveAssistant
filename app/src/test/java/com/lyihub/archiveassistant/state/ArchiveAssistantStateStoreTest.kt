@@ -207,11 +207,11 @@ class ArchiveAssistantStateStoreTest {
 
         store.updateParserInput("UX screenshot image of a settings panel")
         store.submitParserInput()
-        waitUntil { !store.state.isSmartSummarizing }
+        waitUntil { store.state.items.size == initialItemCount + 1 && !store.state.isSmartSummarizing }
 
         val newItem = store.state.items.last()
         assertEquals(initialItemCount + 1, store.state.items.size)
-        assertEquals("item-classified-6", newItem.id)
+        assertEquals("item-classified-${initialItemCount + 1}", newItem.id)
         assertEquals(SixMinistry.WORKS.id, newItem.topicId)
         assertEquals(ContentType.IMAGE_SCREENSHOT, newItem.contentType)
         assertEquals("", store.state.parserInput)
@@ -241,12 +241,12 @@ class ArchiveAssistantStateStoreTest {
 
         store.updateParserInput("Original raw text without URL")
         store.submitParserInput()
-        waitUntil { !store.state.isSmartSummarizing }
+        waitUntil { store.state.items.size == initialItemCount + 1 && !store.state.isSmartSummarizing }
 
         val newItem = store.state.items.last()
         assertEquals(1, summarizer.callCount)
         assertEquals(initialItemCount + 1, store.state.items.size)
-        assertEquals("item-classified-6", newItem.id)
+        assertEquals("item-classified-${initialItemCount + 1}", newItem.id)
         assertEquals(SixMinistry.WORKS.id, newItem.topicId)
         assertEquals(ContentType.WEB_ARTICLE, newItem.contentType)
         assertEquals("智能摘要标题", newItem.title)
@@ -401,6 +401,7 @@ class ArchiveAssistantStateStoreTest {
 
         store.updateParserInput("second raw input")
         store.submitParserInput()
+        waitUntil { summarizer.callCount == 1 }
         assertEquals(1, summarizer.callCount)
 
         gate.complete(successResult(title = "After gate"))
@@ -890,7 +891,7 @@ class ArchiveAssistantStateStoreTest {
     @Test
     fun filterSelection_documentPdf_updatesVisibleItemsForSelectedTopic() {
         val store = ArchiveAssistantStateStore()
-        store.openTopic(SixMinistry.OFFICIALS.id)
+        store.openTopic(SixMinistry.RITES.id)
 
         store.selectFilter(ContentType.DOCUMENT)
 
@@ -902,7 +903,7 @@ class ArchiveAssistantStateStoreTest {
     @Test
     fun closeCardModal_preservesSelectedFilterAndTopic() {
         val store = ArchiveAssistantStateStore()
-        store.openTopic(SixMinistry.OFFICIALS.id)
+        store.openTopic(SixMinistry.RITES.id)
         store.selectFilter(ContentType.DOCUMENT)
 
         val itemId = store.state.filteredSelectedTopicItems.first().id
@@ -915,7 +916,7 @@ class ArchiveAssistantStateStoreTest {
         assertEquals(AppPane.DETAIL, store.state.selectedPane)
         assertNull(store.state.modalItem)
         assertEquals(ContentType.DOCUMENT, store.state.activeDetailFilter)
-        assertEquals(SixMinistry.OFFICIALS.id, store.state.selectedTopicId)
+        assertEquals(SixMinistry.RITES.id, store.state.selectedTopicId)
     }
 
     @Test
@@ -1346,7 +1347,25 @@ class ArchiveAssistantStateStoreTest {
 
         assertEquals(SixMinistry.entries.size, store.state.topics.size)
         assertEquals(SixMinistry.TREASURY.id, store.state.items.single { it.id == legacyItem.id }.topicId)
-        assertEquals(0, dataStore.updateCount)
+        assertEquals(1, dataStore.updateCount)
+    }
+
+    @Test
+    fun loadPersistedState_mergesMissingBuiltInSamplesIntoExistingSnapshot() {
+        val legacyItem = legacyItem(topicId = SixMinistry.WORKS.id)
+        val existingSample = SampleKnowledgeData.items.first()
+        val dataStore = FakePreferencesDataStore().apply {
+            seedTopics(SampleKnowledgeData.topics)
+            seedItems(listOf(existingSample, legacyItem))
+        }
+        val store = ArchiveAssistantStateStore(appDataRepository = AppDataRepository(dataStore))
+
+        waitUntil { store.state.items.size == SampleKnowledgeData.items.size + 1 && dataStore.updateCount == 1 }
+
+        assertTrue(SampleKnowledgeData.items.all { sample -> store.state.items.any { it.id == sample.id } })
+        assertEquals(legacyItem, store.state.items.single { it.id == legacyItem.id })
+        assertEquals(store.state.items, dataStore.decodeStoredItems())
+        assertEquals(1, dataStore.updateCount)
     }
 
     @Test
