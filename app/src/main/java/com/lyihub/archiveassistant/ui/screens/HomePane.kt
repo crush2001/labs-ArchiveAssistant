@@ -74,6 +74,8 @@ import kotlinx.coroutines.delay
 
 private val HomeInk = ImperialUmber
 private val HomePaper = ImperialIvory
+private val ZhongshuWorkLight = Color(0xFF55DDEB)
+private val MenxiaWorkLight = Color(0xFFFFD166)
 private const val HomePulseSwitchMillis = 2000L
 
 private enum class HomePulseTarget {
@@ -304,6 +306,8 @@ private fun HomeFeatureCell(
   mirrorOrnament: Boolean = false,
   textAlignment: Alignment = Alignment.BottomStart,
   pulseActive: Boolean = false,
+  workLightColor: Color? = null,
+  workLightAlignment: Alignment = Alignment.TopStart,
 ) {
   CutoutCell(
     modifier =
@@ -316,6 +320,13 @@ private fun HomeFeatureCell(
       color = tileVisual.borderColor,
       modifier = Modifier.matchParentSize(),
     )
+    if (workLightColor != null) {
+      WorkBreathingLight(
+        active = pulseActive,
+        color = workLightColor,
+        modifier = Modifier.align(workLightAlignment).padding(10.dp),
+      )
+    }
     HomeOrnament(
       imageRes = ornamentRes,
       modifier =
@@ -360,6 +371,63 @@ private fun HomeFeatureCell(
         overflow = TextOverflow.Ellipsis,
       )
     }
+  }
+}
+
+@Composable
+private fun WorkBreathingLight(
+  active: Boolean,
+  color: Color,
+  modifier: Modifier = Modifier,
+) {
+  val progress = remember { Animatable(0f) }
+  LaunchedEffect(active) {
+    if (active) {
+      progress.snapTo(0f)
+      progress.animateTo(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 1400, easing = LinearEasing),
+      )
+    } else {
+      progress.snapTo(0f)
+    }
+  }
+  if (!active && progress.value <= 0f) return
+  val wave = kotlin.math.sin(progress.value * Math.PI * 2.0).toFloat()
+  val glow = ((wave + 1f) / 2f).coerceIn(0f, 1f)
+  val dotSize = 8.dp
+  val haloSize = 30.dp
+  Box(
+    modifier = modifier.size(haloSize),
+    contentAlignment = Alignment.Center,
+  ) {
+    Box(
+      modifier =
+        Modifier.matchParentSize()
+          .graphicsLayer {
+            scaleX = 0.82f + glow * 0.28f
+            scaleY = 0.82f + glow * 0.28f
+            alpha = 0.18f + glow * 0.42f
+          }
+          .background(
+            Brush.radialGradient(
+              colors =
+                listOf(
+                  color.copy(alpha = 0.62f),
+                  color.copy(alpha = 0.18f),
+                  Color.Transparent,
+                )
+            ),
+            RoundedCornerShape(999.dp),
+          )
+    )
+    Box(
+      modifier =
+        Modifier.size(dotSize)
+          .shadow(6.dp, RoundedCornerShape(999.dp), clip = false)
+          .background(color.copy(alpha = 0.82f + glow * 0.18f), RoundedCornerShape(999.dp))
+          .border(0.7.dp, Color.White.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
+    )
   }
 }
 
@@ -455,6 +523,8 @@ private fun PalaceDashboardBlock(
             ornamentOffsetX = 18.dp,
             ornamentTint = Color.White,
             pulseActive = pulseTarget == HomePulseTarget.Zhongshu,
+            workLightColor = ZhongshuWorkLight,
+            workLightAlignment = Alignment.TopStart,
           )
           HomeFeatureCell(
             title = "门下递奏",
@@ -471,6 +541,8 @@ private fun PalaceDashboardBlock(
             ornamentAlignment = Alignment.CenterStart,
             textAlignment = Alignment.BottomEnd,
             pulseActive = pulseTarget == HomePulseTarget.Menxia,
+            workLightColor = MenxiaWorkLight,
+            workLightAlignment = Alignment.TopEnd,
           )
         }
         MemorialCell(

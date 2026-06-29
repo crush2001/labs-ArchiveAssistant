@@ -458,7 +458,7 @@ private fun MemorialWheelCover(
           .padding(frameOutset)
     ) {
       Text(
-        text = departmentTitle,
+        text = "「$departmentTitle」",
         style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
         color = MemorialInk.copy(alpha = 0.82f),
         fontWeight = FontWeight.Normal,
