@@ -714,14 +714,39 @@ private fun MinistryFoldCard(
     shape = RoundedCornerShape(7.dp),
     foldIntensity = if (compact) 0.16f else 0.2f,
   ) {
-    Row(
-      modifier =
-        Modifier.fillMaxSize().padding(start = 16.dp, top = 7.dp, end = 12.dp, bottom = 7.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+      if (!isManagingMinistries) {
+        Image(
+          painter = painterResource(id = visual.imageRes),
+          contentDescription = null,
+          modifier =
+            Modifier.align(Alignment.TopEnd)
+              .offset(x = 10.dp, y = (-8).dp)
+              .size(imageSize + if (compact) 12.dp else 16.dp),
+          contentScale = ContentScale.Fit,
+          alpha = 0.78f,
+        )
+        Text(
+          text =
+            folder.updatedAtEpochMillis?.let { "${folder.itemCount} 篇 · ${friendlyTime(it)}" }
+              ?: "${folder.itemCount} 篇 · 待启用",
+          style = MaterialTheme.typography.labelSmall.copy(fontFamily = ImperialDisplayFont),
+          color = Color.Black.copy(alpha = 0.5f),
+          maxLines = 1,
+          softWrap = false,
+          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 8.dp),
+        )
+      }
       Column(
-        modifier = Modifier.weight(1f),
+        modifier =
+          Modifier.align(Alignment.CenterStart)
+            .fillMaxWidth()
+            .padding(
+              start = 16.dp,
+              top = 7.dp,
+              end = if (isManagingMinistries) 116.dp else if (compact) 108.dp else 136.dp,
+              bottom = 7.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
       ) {
         Text(
@@ -740,40 +765,20 @@ private fun MinistryFoldCard(
           overflow = TextOverflow.Ellipsis,
         )
       }
-      Column(
-        modifier =
-          Modifier.width(if (isManagingMinistries) 104.dp else if (compact) 78.dp else 104.dp),
-        horizontalAlignment = Alignment.End,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-      ) {
-        if (isManagingMinistries && folder.topic != null) {
-          Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MinistryInlineAction(
-              title = "改名",
-              onClick = { onRenameTopic(folder.topic.id) },
-              testTag = "rename-topic-button-${folder.id}",
-            )
-            MinistryInlineAction(
-              title = "删除",
-              onClick = { onDeleteTopic(folder.topic.id) },
-              testTag = "delete-topic-button-${folder.id}",
-            )
-          }
-        } else {
-          Image(
-            painter = painterResource(id = visual.imageRes),
-            contentDescription = null,
-            modifier = Modifier.size(imageSize),
-            contentScale = ContentScale.Fit,
+      if (isManagingMinistries && folder.topic != null) {
+        Row(
+          modifier = Modifier.align(Alignment.CenterEnd).padding(end = 12.dp),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+          MinistryInlineAction(
+            title = "改名",
+            onClick = { onRenameTopic(folder.topic.id) },
+            testTag = "rename-topic-button-${folder.id}",
           )
-          Text(
-            text =
-              folder.updatedAtEpochMillis?.let { "${folder.itemCount} 篇 · ${friendlyTime(it)}" }
-                ?: "${folder.itemCount} 篇 · 待启用",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.Black.copy(alpha = 0.48f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+          MinistryInlineAction(
+            title = "删除",
+            onClick = { onDeleteTopic(folder.topic.id) },
+            testTag = "delete-topic-button-${folder.id}",
           )
         }
       }
