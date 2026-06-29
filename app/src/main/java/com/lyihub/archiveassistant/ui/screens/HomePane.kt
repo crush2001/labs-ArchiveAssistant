@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -76,9 +77,10 @@ private val HomeInk = ImperialUmber
 private val HomePaper = ImperialIvory
 private val ZhongshuWorkLight = Color(0xFF55DDEB)
 private val MenxiaWorkLight = Color(0xFFFFD166)
-private const val HomePulseCycleMillis = 1400
+private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
 private const val HomePulseTargetMillis = HomePulseCycleMillis * HomePulseCyclesPerTarget
+private const val HomePulseShineMillis = 700
 
 private enum class HomePulseTarget {
   Zhongshu,
@@ -311,6 +313,35 @@ private fun HomeFeatureCell(
   workLightColor: Color? = null,
   workLightAlignment: Alignment = Alignment.TopStart,
 ) {
+  val cardMotion = remember { Animatable(0f) }
+  LaunchedEffect(pulseActive) {
+    if (pulseActive) {
+      cardMotion.snapTo(0f)
+      cardMotion.animateTo(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
+      )
+    } else {
+      cardMotion.snapTo(0f)
+    }
+  }
+  val motionPhase = cardMotion.value
+  val shakeDegrees =
+    when {
+      motionPhase < 0.25f -> 3f * (motionPhase / 0.25f)
+      motionPhase < 0.5f -> 3f + (-6f) * ((motionPhase - 0.25f) / 0.25f)
+      motionPhase < 0.75f -> -3f + 4f * ((motionPhase - 0.5f) / 0.25f)
+      motionPhase < 1f -> 1f - 1f * ((motionPhase - 0.75f) / 0.25f)
+      else -> 0f
+    }
+  val shakeOffsetX =
+    when {
+      motionPhase < 0.25f -> 4f * (motionPhase / 0.25f)
+      motionPhase < 0.5f -> 4f + (-7f) * ((motionPhase - 0.25f) / 0.25f)
+      motionPhase < 0.75f -> -3f + 5f * ((motionPhase - 0.5f) / 0.25f)
+      motionPhase < 1f -> 2f - 2f * ((motionPhase - 0.75f) / 0.25f)
+      else -> 0f
+    }
   Box(
     modifier =
       modifier.fillMaxSize().clickable(enabled = enabled, onClick = onClick).testTag(testTag)
@@ -321,10 +352,19 @@ private fun HomeFeatureCell(
       modifier = Modifier.matchParentSize(),
     )
     CutoutCell(
-      modifier = Modifier.matchParentSize(),
+      modifier =
+        Modifier.matchParentSize().graphicsLayer {
+          rotationZ = shakeDegrees
+          translationX = shakeOffsetX
+        },
       contentColor = contentColor,
       tileVisual = tileVisual,
     ) {
+      TileShineSweep(
+        active = pulseActive,
+        color = workLightColor ?: tileVisual.borderColor,
+        modifier = Modifier.matchParentSize(),
+      )
       HomeOrnament(
         imageRes = ornamentRes,
         modifier =
@@ -375,10 +415,52 @@ private fun HomeFeatureCell(
       WorkBreathingLight(
         active = pulseActive,
         color = workLightColor,
-        modifier = Modifier.align(workLightAlignment).padding(10.dp),
+        modifier = Modifier.align(workLightAlignment).padding(5.dp),
       )
     }
   }
+}
+
+@Composable
+private fun TileShineSweep(
+  active: Boolean,
+  color: Color,
+  modifier: Modifier = Modifier,
+) {
+  val progress = remember { Animatable(0f) }
+  LaunchedEffect(active) {
+    if (active) {
+      progress.snapTo(0f)
+      progress.animateTo(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
+      )
+    } else {
+      progress.snapTo(0f)
+    }
+  }
+  if (!active && progress.value <= 0f) return
+  Box(
+    modifier =
+      modifier.drawBehind {
+        val sweepWidth = size.minDimension * 0.32f
+        val left = -sweepWidth + (size.width + sweepWidth * 2f) * progress.value
+        drawRect(
+          brush =
+            Brush.linearGradient(
+              colors =
+                listOf(
+                  Color.Transparent,
+                  color.copy(alpha = 0.28f),
+                  Color.Transparent,
+                ),
+              start = Offset(left, size.height),
+              end = Offset(left + sweepWidth, 0f),
+            ),
+          size = size,
+        )
+      }
+  )
 }
 
 @Composable
@@ -473,10 +555,10 @@ private fun TilePulseWave(
   Box(
     modifier =
       modifier.drawBehind {
-        val baseStroke = (size.minDimension * 0.018f).coerceIn(1.2f, 2.4f)
+        val baseStroke = (size.minDimension * 0.026f).coerceIn(1.8f, 3.4f)
         val cycleProgress = progress.value % 1f
-        repeat(2) { index ->
-          val phase = (cycleProgress + index * 0.5f) % 1f
+        repeat(1) {
+          val phase = cycleProgress
           val inset = size.minDimension * 0.28f * phase
           val expandedSize =
             Size(
