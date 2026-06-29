@@ -83,6 +83,8 @@ private const val MemorialActiveSlotDegrees = 225f
 private const val MemorialWheelDragDegreesPerPixel = -0.18f
 private const val MemorialWheelActiveScale = 1.58f
 private const val MemorialWheelFocusHalfRangeDegrees = 24f
+private const val MemorialWheelDepartmentLabelVisibleStart = 0.88f
+private const val MemorialWheelDepartmentLabelVisibleEnd = 0.965f
 private const val MemorialWheelCoverSeed = 20260627
 private const val MemorialWheelDuplicateGuard = 3
 private const val MemorialWheelAutoAdvanceMillis = 4000L
@@ -273,7 +275,6 @@ private fun MemorialCoverWheel(
       key(item.index) {
         MemorialWheelCover(
           resId = item.resId,
-          index = item.index,
           degrees = item.degrees,
           centerX = wheelCenterX,
           centerY = centerY,
@@ -410,7 +411,6 @@ private fun MemorialWheelInnerDisc(
 @Composable
 private fun MemorialWheelCover(
   resId: Int,
-  index: Int,
   degrees: Float,
   centerX: Dp,
   centerY: Dp,
@@ -426,12 +426,13 @@ private fun MemorialWheelCover(
   val height = width / MemorialCoverAspect
   val x = centerX + radius * cos(radians).toFloat() - width / 2f
   val y = centerY + radius * sin(radians).toFloat() - height * 0.75f
-  val cornerRadius = lerpDp(1.5.dp, 2.5.dp, focus)
-  val frameOutset = lerpDp(3.dp, 5.dp, focus)
+  val departmentLabelAlpha = departmentLabelAlpha(focus)
+  val cornerRadius = 2.dp
+  val frameOutset = 4.dp
   val frameWidth = width + frameOutset * 2f
   val frameHeight = height + frameOutset * 2f
-  val frameCornerRadius = lerpDp(3.dp, 4.5.dp, focus)
-  val frameStrokeWidth = lerpDp(1.dp, 1.6.dp, focus)
+  val frameCornerRadius = 4.dp
+  val frameStrokeWidth = 1.2.dp
   val transformPivotY = ((height.value * 0.75f) + frameOutset.value) / frameHeight.value
   Box(modifier = modifier) {
     Box(
@@ -459,13 +460,13 @@ private fun MemorialWheelCover(
       Text(
         text = departmentTitle,
         style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
-        color = MemorialInk.copy(alpha = lerpFloat(0.0f, 0.82f, focus)),
+        color = MemorialInk.copy(alpha = 0.82f),
         fontWeight = FontWeight.Normal,
         modifier =
           Modifier.align(Alignment.TopCenter)
             .offset(y = (-21).dp)
             .requiredWidth(frameWidth * 3.1f)
-            .graphicsLayer { alpha = focus },
+            .graphicsLayer { alpha = departmentLabelAlpha },
         textAlign = TextAlign.Center,
       )
       Box(
@@ -501,13 +502,23 @@ private fun MemorialWheelCover(
         modifier =
           Modifier.matchParentSize()
             .border(
-              width = lerpDp(0.6.dp, 0.9.dp, focus),
-              color = ImperialIvory.copy(alpha = lerpFloat(0.12f, 0.18f, focus)),
+              width = 0.75.dp,
+              color = ImperialIvory.copy(alpha = 0.15f),
               shape = RoundedCornerShape(frameCornerRadius),
             )
       )
     }
   }
+}
+
+internal fun departmentLabelAlpha(focus: Float): Float {
+  val eased =
+    smoothStep(
+      MemorialWheelDepartmentLabelVisibleStart,
+      MemorialWheelDepartmentLabelVisibleEnd,
+      focus,
+    )
+  return eased * eased
 }
 
 @Composable
