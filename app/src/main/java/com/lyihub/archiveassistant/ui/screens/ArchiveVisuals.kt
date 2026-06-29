@@ -24,11 +24,6 @@ internal data class FolderVisual(
     val accent: Color,
 )
 
-internal data class ArticleVisual(
-    @param:DrawableRes val imageRes: Int?,
-    val aspectRatio: Float,
-)
-
 internal data class ArchiveTileVisual(
     @param:DrawableRes val backgroundRes: Int,
     val borderColor: Color,
@@ -164,27 +159,6 @@ internal val MemorialCoverResources = listOf(
     R.drawable.memorial_cover_23,
 )
 
-private val ArticleIllustrations = listOf(
-    R.drawable.tsieina_article_01,
-    R.drawable.tsieina_article_02,
-    R.drawable.tsieina_article_03,
-    R.drawable.tsieina_article_04,
-    R.drawable.tsieina_article_05,
-    R.drawable.tsieina_article_06,
-)
-
 internal fun folderVisual(index: Int): FolderVisual = FolderVisuals[index % FolderVisuals.size]
 
 private fun Int.floorMod(modulus: Int): Int = ((this % modulus) + modulus) % modulus
-
-internal fun articleVisual(index: Int, hasImage: Boolean): ArticleVisual {
-    if (!hasImage) return ArticleVisual(imageRes = null, aspectRatio = 1f)
-    val image = ArticleIllustrations[index % ArticleIllustrations.size]
-    val ratio = when (index % ArticleIllustrations.size) {
-        1 -> 0.86f
-        2 -> 1.04f
-        3 -> 1f
-        else -> 0.78f
-    }
-    return ArticleVisual(imageRes = image, aspectRatio = ratio)
-}

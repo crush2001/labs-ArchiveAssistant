@@ -16,6 +16,7 @@ desugarJdkLibsNio = "2.1.4"
 kotlinxCoroutinesTest = "1.8.1"
 json = "20240303"
 pdfboxAndroid = "2.0.27.0"
+coilCompose = "2.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,6 +41,7 @@ desugar-jdk-libs-nio = { module = "com.android.tools:desugar_jdk_libs_nio", vers
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
 json = { module = "org.json:json", version.ref = "json" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfboxAndroid" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -70,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.lyihub.archiveassistant.R
 import androidx.core.content.FileProvider
 import com.lyihub.archiveassistant.domain.ContentType
@@ -317,7 +318,6 @@ private fun ArticleMasonryGrid(
                 columns[column].forEach { card ->
                     MemorialArticleCard(
                         item = card.item,
-                        visual = card.visual,
                         onClick = { onItemClick(card.item.id) },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -329,31 +329,35 @@ private fun ArticleMasonryGrid(
 
 private data class MasonryArticleCard(
     val item: KnowledgeItem,
-    val visual: ArticleVisual,
 )
 
 private fun distributeArticleCards(items: List<KnowledgeItem>): List<List<MasonryArticleCard>> {
     val columns = List(2) { mutableListOf<MasonryArticleCard>() }
     val heights = FloatArray(2)
-    items.forEachIndexed { index, item ->
-        val visual = articleVisual(index, hasArticleImage(item))
+    items.forEach { item ->
         val column = if (heights[0] <= heights[1]) 0 else 1
-        columns[column] += MasonryArticleCard(item, visual)
-        heights[column] += estimateArticleHeight(item, visual)
+        columns[column] += MasonryArticleCard(item)
+        heights[column] += estimateArticleHeight(item)
     }
     return columns
 }
 
-private fun estimateArticleHeight(item: KnowledgeItem, visual: ArticleVisual): Float {
+private fun estimateArticleHeight(item: KnowledgeItem): Float {
     val textWeight = 1f +
         (item.title.length / 18f).coerceAtMost(2.2f) +
         (item.summary.ifBlank { item.fullText }.length / 72f).coerceAtMost(3.6f)
-    val imageWeight = visual.imageRes?.let { 1.2f / visual.aspectRatio.coerceAtLeast(0.48f) } ?: 0f
+    val imageWeight = if (item.imageUrl != null) 1.45f / articleImageAspectRatio(item).coerceAtLeast(0.58f) else 0f
     return textWeight + imageWeight
 }
 
-private fun hasArticleImage(item: KnowledgeItem): Boolean {
-    return item.contentType == ContentType.IMAGE_SCREENSHOT || item.contentType == ContentType.WEB_ARTICLE
+private fun articleImageAspectRatio(item: KnowledgeItem): Float {
+    return when (positiveMod(item.id.hashCode(), 5)) {
+        0 -> 1.18f
+        1 -> 0.92f
+        2 -> 1.34f
+        3 -> 0.78f
+        else -> 1.05f
+    }
 }
 
 @Composable
@@ -376,13 +380,14 @@ private fun DetailCourtHeader(
 @Composable
 private fun MemorialArticleCard(
     item: KnowledgeItem,
-    visual: ArticleVisual,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val cardShape = RoundedCornerShape(DetailCardCorner)
     val imageShape = RoundedCornerShape(DetailCardCorner)
     val tags = articleTags(item)
+    val imageUrl = item.imageUrl
+    var showRemoteImage by remember(imageUrl) { mutableStateOf(imageUrl != null) }
     Box(
         modifier = modifier
             .shadow(8.dp, cardShape, clip = false)
@@ -408,7 +413,7 @@ private fun MemorialArticleCard(
                 .padding(7.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            visual.imageRes?.let { imageRes ->
+            if (imageUrl != null && showRemoteImage) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -416,13 +421,15 @@ private fun MemorialArticleCard(
                         .background(Color.White, imageShape)
                         .padding(5.dp),
                 ) {
-                    Image(
-                        painter = painterResource(id = imageRes),
+                    AsyncImage(
+                        model = imageUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(visual.aspectRatio),
-                        contentScale = ContentScale.Fit,
+                            .aspectRatio(articleImageAspectRatio(item))
+                            .clip(imageShape),
+                        contentScale = ContentScale.Crop,
+                        onError = { showRemoteImage = false },
                     )
                 }
             }
@@ -458,6 +465,18 @@ private fun MemorialArticleCard(
 }
 
 private fun articleTags(item: KnowledgeItem): List<String> {
+    item.fullText
+        .lineSequence()
+        .firstOrNull { it.startsWith("标签：") }
+        ?.removePrefix("标签：")
+        ?.split("·", "、", ",", "，")
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        ?.distinct()
+        ?.take(3)
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { return it }
+
     val formatTag = item.documentFormat?.label ?: item.contentType.label
     val seed = (item.title.length + item.summary.length + item.id.length).coerceAtLeast(0)
     val first = DetailArticleTags[seed % DetailArticleTags.size]

@@ -16,6 +16,7 @@ data class KnowledgeItem(
     val summary: String,
     val fullText: String,
     val sourceUrl: String?,
+    val imageUrl: String? = null,
     val documentFormat: DocumentFormat? = null,
     val fileName: String? = null,
     val fileSize: Long? = null,

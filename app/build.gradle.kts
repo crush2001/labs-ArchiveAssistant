@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.jsoup)
     implementation(libs.pdfbox.android)
+    implementation(libs.coil.compose)
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
