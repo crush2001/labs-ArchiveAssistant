@@ -874,25 +874,13 @@ internal class MemorialFoldView(context: Context) : View(context) {
     val extraBottomLevel = if (isVerdictLeaving && remaining > stackCount) 1 else 0
     val renderedStackCount = stackCount + extraBottomLevel
     for (level in renderedStackCount downTo 1) {
-      val nextLevel = (level - 1).coerceAtLeast(0)
-      val sourceOffsetX = MemorialStackGeometry.offsetX(level, ::dp)
-      val sourceOffsetY = MemorialStackGeometry.offsetY(level, ::dp)
-      val sourceScale = MemorialStackGeometry.scale(level)
-      val sourceRotation = MemorialStackGeometry.rotation(level)
-      val targetOffsetX = MemorialStackGeometry.offsetX(nextLevel, ::dp)
-      val targetOffsetY = MemorialStackGeometry.offsetY(nextLevel, ::dp)
-      val targetScale = MemorialStackGeometry.scale(nextLevel)
-      val targetRotation = MemorialStackGeometry.rotation(nextLevel)
-      val offsetX = lerp(sourceOffsetX, targetOffsetX, stackShiftProgress)
-      val offsetY = lerp(sourceOffsetY, targetOffsetY, stackShiftProgress)
-      val scale = lerp(sourceScale, targetScale, stackShiftProgress)
-      val rotation = lerp(sourceRotation, targetRotation, stackShiftProgress)
+      val pose = MemorialStackGeometry.pose(level, stackShiftProgress, ::dp)
       val stackRect =
         RectF(
-          coverLeft + offsetX,
-          cover.top + offsetY,
-          coverLeft + offsetX + cover.width,
-          cover.top + offsetY + cover.height,
+          coverLeft + pose.offsetX,
+          cover.top + pose.offsetY,
+          coverLeft + pose.offsetX + cover.width,
+          cover.top + pose.offsetY + cover.height,
         )
       val alpha =
         if (extraBottomLevel == 1 && level == renderedStackCount) {
@@ -901,8 +889,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
           1f
         }
       canvas.save()
-      canvas.rotate(rotation, stackRect.centerX(), stackRect.centerY())
-      canvas.scale(scale, scale, stackRect.centerX(), stackRect.centerY())
+      canvas.rotate(pose.rotation, stackRect.centerX(), stackRect.centerY())
+      canvas.scale(pose.scale, pose.scale, stackRect.centerX(), stackRect.centerY())
       drawStackCoverArticle(
         canvas = canvas,
         cover = cover,

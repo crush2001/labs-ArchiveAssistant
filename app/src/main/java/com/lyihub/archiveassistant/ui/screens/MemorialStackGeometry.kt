@@ -1,6 +1,28 @@
 package com.lyihub.archiveassistant.ui.screens
 
+internal data class MemorialStackPose(
+  val offsetX: Float,
+  val offsetY: Float,
+  val scale: Float,
+  val rotation: Float,
+)
+
 internal object MemorialStackGeometry {
+  fun pose(
+    level: Int,
+    shiftProgress: Float,
+    dp: (Float) -> Float,
+  ): MemorialStackPose {
+    val nextLevel = (level - 1).coerceAtLeast(0)
+    val progress = shiftProgress.coerceIn(0f, 1f)
+    return MemorialStackPose(
+      offsetX = lerp(offsetX(level, dp), offsetX(nextLevel, dp), progress),
+      offsetY = lerp(offsetY(level, dp), offsetY(nextLevel, dp), progress),
+      scale = lerp(scale(level), scale(nextLevel), progress),
+      rotation = lerp(rotation(level), rotation(nextLevel), progress),
+    )
+  }
+
   fun offsetX(level: Int, dp: (Float) -> Float): Float {
     return when (level) {
       0 -> 0f
