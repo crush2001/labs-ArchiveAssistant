@@ -34,26 +34,27 @@ fun uniqueImportFile(itemsDir: File, fileName: String): File {
 }
 
 fun markdownFileName(title: String): String {
-    val baseName = title
-        .lineSequence()
-        .firstOrNull()
-        .orEmpty()
-        .trim()
-        .take(48)
-        .replace(Regex("[\\\\/:*?\"<>|]+"), "-")
-        .ifBlank { "clipboard-note" }
-    return if (baseName.endsWith(".md", ignoreCase = true)) baseName else "$baseName.md"
+  val baseName =
+    title
+      .lineSequence()
+      .firstOrNull()
+      .orEmpty()
+      .trim()
+      .take(48)
+      .replace(Regex("[\\\\/:*?\"<>|]+"), "-")
+      .ifBlank { "clipboard-note" }
+  return if (baseName.endsWith(".md", ignoreCase = true)) baseName else "$baseName.md"
 }
 
 fun writeMarkdownFile(itemsDir: File, title: String, content: String): File? {
-    return try {
-        itemsDir.mkdirs()
-        val dest = uniqueImportFile(itemsDir, markdownFileName(title))
-        dest.writeText(content)
-        dest
-    } catch (_: Exception) {
-        null
-    }
+  return try {
+    itemsDir.mkdirs()
+    val dest = uniqueImportFile(itemsDir, markdownFileName(title))
+    dest.writeText(content)
+    dest
+  } catch (_: Exception) {
+    null
+  }
 }
 
 fun copyUriToFile(context: Context, uri: Uri, destFile: File): Boolean {

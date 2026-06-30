@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.lyihub.archiveassistant.R
+import com.lyihub.archiveassistant.domain.SixMinistry
 
 internal data class FolderVisual(
   val description: String,
@@ -81,7 +82,7 @@ internal val ZhongshuTileVisual =
 internal val MenxiaTileVisual =
   ArchiveTileVisual(
     backgroundRes = R.drawable.home_menxia_tile,
-    borderColor = Color(0xFFDEC59E),
+    borderColor = Color(0xFFC6A06B),
   )
 
 internal val MemorialTileVisual =
@@ -132,22 +133,22 @@ internal val FolderVisuals =
 
 internal val SampleTopicIds =
   listOf(
-    "topic-ai-architecture",
-    "topic-ui-inspiration",
-    "topic-anthropology-clips",
-    "topic-hidden-travel",
-    "topic-open-source-tools",
-    "topic-knowledge-workflows",
+    SixMinistry.OFFICIALS.id,
+    SixMinistry.TREASURY.id,
+    SixMinistry.RITES.id,
+    SixMinistry.MILITARY.id,
+    SixMinistry.JUSTICE.id,
+    SixMinistry.WORKS.id,
   )
 
 internal val SampleTopicTitles =
   listOf(
-    "大模型架构研究",
-    "UX/UI 灵感板",
-    "阅读剪报：人类学",
-    "冷门旅行地参考",
-    "开源工具收藏",
-    "知识管理方法",
+    SixMinistry.OFFICIALS.label,
+    SixMinistry.TREASURY.label,
+    SixMinistry.RITES.label,
+    SixMinistry.MILITARY.label,
+    SixMinistry.JUSTICE.label,
+    SixMinistry.WORKS.label,
   )
 
 internal fun folderIndexForTopicId(topicId: String): Int {

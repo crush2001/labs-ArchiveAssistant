@@ -76,10 +76,10 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.delay
 
-private const val MemorialCoverAspect = 1f / 2f
+private const val MemorialCoverAspect = 1.1f / 2f
 private const val MemorialWheelItemCount = 20
 private const val MemorialActiveSlotDegrees = 225f
-private const val MemorialWheelDragDegreesPerPixel = -0.18f
+private const val MemorialWheelDragDegreesPerPixel = -0.10f
 private const val MemorialWheelActiveScale = 1.58f
 private const val MemorialWheelFocusHalfRangeDegrees = 24f
 private const val MemorialWheelDepartmentLabelVisibleStart = 0.8f
@@ -242,8 +242,8 @@ private fun MemorialCoverWheel(
     val radius = panelMin * 0.66f
     val innerRadius = radius * 0.69f
     val wheelCenterX = maxWidth + 58.dp
-    val centerY = maxHeight * 0.67f
-    val cardWidth = 72.dp
+    val centerY = maxHeight * 0.69f
+    val cardWidth = 61.dp
     val pendingStampLines = pendingStampLines(pendingCount)
     val pendingStampHeight = 14.dp + 31.dp * pendingStampLines.size
     val pendingStampWidth = 48.dp
@@ -391,7 +391,7 @@ private fun MemorialWheelInnerDisc(
   modifier: Modifier = Modifier,
 ) {
   val diameter = radius * 2f
-  val iconSize = 76.dp
+  val iconSize = 68.dp
   Box(modifier = modifier) {
     Box(
       modifier =
@@ -413,15 +413,15 @@ private fun MemorialWheelInnerDisc(
           colorFilter = ColorFilter.tint(MemorialInk),
         )
         Text(
-          text = "轻触阅读",
-          style = MaterialTheme.typography.titleLarge,
+          text = "轻触批阅",
+          style = MaterialTheme.typography.titleMedium,
           color = MemorialInk,
           fontWeight = FontWeight.Normal,
           textAlign = TextAlign.Center,
         )
         Text(
           text = "上下拨动奏章轮",
-          style = MaterialTheme.typography.bodyMedium,
+          style = MaterialTheme.typography.bodySmall,
           color = MemorialInk.copy(alpha = 0.78f),
           textAlign = TextAlign.Center,
         )
@@ -481,7 +481,7 @@ private fun MemorialWheelCover(
     ) {
       Text(
         text = departmentTitle,
-        style = MaterialTheme.typography.titleSmall.copy(fontSize = 10.sp),
+        style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.sp),
         color = MemorialInk.copy(alpha = 0.82f),
         fontWeight = FontWeight.Normal,
         modifier =
@@ -641,7 +641,7 @@ private fun BriefingCopy(
   ) {
     PaneHeroHeader(
       title = "奏章",
-      description = "轻触此页展开奏章堆叠，准、驳、留中皆可一笔批下",
+      description = "轻触此页批阅奏章，准、驳、留中皆可一笔批下",
       showBackButton = showBackButton,
       onBack = onBack,
       onTitleClick = onTitleClick,

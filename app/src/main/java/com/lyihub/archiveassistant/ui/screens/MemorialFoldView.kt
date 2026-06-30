@@ -19,12 +19,10 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.view.InputDevice
 import android.view.MotionEvent
-import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.LinearInterpolator
 import android.view.animation.PathInterpolator
-import android.widget.OverScroller
 import com.lyihub.archiveassistant.util.toChineseCount
 import kotlin.math.PI
 import kotlin.math.abs
@@ -32,7 +30,6 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.random.Random
 
 private enum class MemorialToolbarButton {
   CoverSummary,
@@ -45,17 +42,22 @@ private enum class MemorialToolbarButton {
   Collapse,
 }
 
+private const val MinReadableSpreadPageWidthDp = 258f
+private const val StablePaperAgingSeed = 1
+
+private data class SizeF(
+  val width: Float,
+  val height: Float,
+)
+
 internal class MemorialFoldView(context: Context) : View(context) {
   private val displayDensity = resources.displayMetrics.density
   private val scaledDensity = displayDensity * resources.configuration.fontScale
-  private val scroller = OverScroller(context)
   private val camera = Camera()
   private val matrix = Matrix()
   private val articleRect = RectF()
   private val config = ViewConfiguration.get(context)
   private val touchSlop = config.scaledTouchSlop
-  private val minimumVelocity = config.scaledMinimumFlingVelocity
-  private val maximumVelocity = config.scaledMaximumFlingVelocity
 
   private val assets = MemorialAssets(context)
   private val paints = MemorialPaints(displayDensity, scaledDensity, assets)
@@ -75,7 +77,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private val paperClipPath = Path()
   private val tagChipPath = Path()
 
-  private var velocityTracker: VelocityTracker? = null
   private var lastTouchX = 0f
   private var downTouchX = 0f
   private var downTouchY = 0f
@@ -111,7 +112,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private var summaryTouchX = 0f
   private var summaryTouchY = 0f
   private var isDragging = false
-  private var pendingSpreadSnap = false
   private var foldScrollX = 0f
   private var maxScrollX = 0f
   private var articleWidth = 0f
@@ -145,7 +145,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       stage == MemorialStage.CoverOnly &&
         coverSwipeAnimator == null &&
         currentStamp == null &&
-        (coverTouchStartedOnCover || coverSummaryPressed)
+        coverSummaryPressed
     ) {
       coverPreviewStampTargetStrength = 0f
       coverPreviewStampStrength = 0f
@@ -392,7 +392,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
     when (event.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
         parent?.requestDisallowInterceptTouchEvent(true)
-        velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
         lastTouchX = event.x
         downTouchX = event.x
         downTouchY = event.y
@@ -416,7 +415,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
       }
 
       MotionEvent.ACTION_MOVE -> {
-        velocityTracker?.addMovement(event)
         val dx = lastTouchX - event.x
         if (!isDragging && abs(dx) > touchSlop) {
           isDragging = true
@@ -431,7 +429,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
       MotionEvent.ACTION_UP,
       MotionEvent.ACTION_CANCEL -> {
-        velocityTracker?.addMovement(event)
         if (event.actionMasked == MotionEvent.ACTION_UP) {
           val pressedStamp = toolbarPressedStamp
           val releasedStamp =
@@ -449,35 +446,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
               onCloseAnimationFinished?.invoke() ?: onAutoDismiss?.invoke()
             }
           } else if (!isDragging && pressedStamp == MemorialStamp.Collapse && releasedCollapse) {
-            closeWithAnimation {
-              onCloseAnimationFinished?.invoke() ?: onAutoDismiss?.invoke()
-            }
+            closeFromExpandedReader()
           } else if (!isDragging && pressedStamp != null && pressedStamp == releasedStamp) {
             startStampAndDismiss(pressedStamp)
           } else {
-            velocityTracker?.computeCurrentVelocity(1000, maximumVelocity.toFloat())
-            val velocityX = velocityTracker?.xVelocity ?: 0f
-            if (abs(velocityX) > minimumVelocity) {
-              scroller.fling(
-                foldScrollX.roundToInt(),
-                0,
-                (-velocityX).roundToInt(),
-                0,
-                0,
-                maxScrollX.roundToInt(),
-                0,
-                0,
-              )
-              pendingSpreadSnap = true
-              postInvalidateOnAnimation()
-            } else if (isDragging) {
-              snapToNearestSpread()
-            }
+            if (isDragging) finishReadingDragWithSnap()
             performClick()
           }
+        } else if (isDragging) {
+          finishReadingDragWithSnap()
         }
-        velocityTracker?.recycle()
-        velocityTracker = null
         isDragging = false
         toolbarPressedStamp = null
         clearPressedToolbarButton()
@@ -522,14 +500,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
       stampAnimator != null ||
       coverSwipeAnimator != null ||
       currentStamp != null ||
-      coverFinalStamp != null ||
-      pendingSpreadSnap ||
-      !scroller.isFinished
+      coverFinalStamp != null
   }
 
   private fun resetReaderTouchState() {
-    velocityTracker?.recycle()
-    velocityTracker = null
     isDragging = false
     toolbarPressedStamp = null
     clearPressedToolbarButton()
@@ -574,8 +548,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
         pressedToolbarButton = coverPressedToolbarButton(event.x, event.y)
         if (coverSummaryPressed) {
           postDelayed(showSummaryRunnable, 120L)
-        } else if (coverTouchStartedOnCover && toolbarPressedStamp == null) {
-          postDelayed(showSummaryRunnable, 420L)
         }
         coverDragX = 0f
         coverDragY = 0f
@@ -607,7 +579,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
             hideSummary(animated = true)
           }
           removeCallbacks(showSummaryRunnable)
-          if (coverTouchStartedOnCover || coverSummaryPressed) {
+          if (coverSummaryPressed) {
             postDelayed(showSummaryRunnable, 360L)
           }
         }
@@ -723,16 +695,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
     return true
   }
 
-  override fun computeScroll() {
-    if (scroller.computeScrollOffset()) {
-      foldScrollX = scroller.currX.toFloat().coerceIn(0f, maxScrollX)
-      postInvalidateOnAnimation()
-    } else if (pendingSpreadSnap) {
-      pendingSpreadSnap = false
-      snapToNearestSpread()
-    }
-  }
-
   private fun drawCoverOnly(canvas: Canvas) {
     val cover = articles.firstOrNull() ?: return
     val coverLeft = coverStackLeft(cover)
@@ -774,7 +736,25 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun openingBaseLeft(): Float {
-    return foldLeft + openingAlignmentOffset() * (1f - openProgress.coerceIn(0f, 1f))
+    val progress = openProgress.coerceIn(0f, 1f)
+    val coverStart = foldLeft + openingAlignmentOffset()
+    val readingStart = foldLeft
+    return lerp(coverStart, readingStart, progress)
+  }
+
+  private fun readingContentInset(viewportWidth: Float = foldRight - foldLeft): Float {
+    if (articleWidth <= 0f || viewportWidth <= 0f) return 0f
+    val pagesPerSpread = pagesPerSpreadForViewport(viewportWidth)
+    val spreadWidth = articleWidth * pagesPerSpread
+    return ((viewportWidth - spreadWidth) / 2f).coerceAtLeast(0f)
+  }
+
+  private fun pagesPerSpreadForViewport(
+    viewportWidth: Float,
+    viewportHeight: Float = foldBottom - foldTop,
+  ): Float {
+    if (viewportWidth <= 0f || viewportHeight <= 0f) return 1f
+    return if (viewportWidth / 2f >= dp(MinReadableSpreadPageWidthDp)) 2f else 1f
   }
 
   private fun drawCoverStackLayer(canvas: Canvas, alpha: Float) {
@@ -947,21 +927,40 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawCoverGestureHint(canvas: Canvas) {
-    val bottomGap = dp(12f)
-    val buttonHeight = dp(48f)
-    val bottomTop = foldBottom - buttonHeight - dp(18f)
-    buttonLayouter.layoutButtonRow(
-      rects = listOf(coverActionLeftRect, coverActionRightRect, coverActionKeepRect),
-      centerX = foldLeft + (foldRight - foldLeft) / 2f,
+    val controlsWidth = controlsViewportWidth()
+    val controlScale = controlsResponsiveScale()
+    val bottomGap = dp(12f) * controlScale
+    val buttonHeight = dp(48f) * controlScale
+    val bottomTop = foldBottom - buttonHeight - dp(18f) * controlScale
+    val bottomGroupWidth = min(dp(430f) * controlScale, controlsWidth)
+    val bottomLeft = foldLeft + ((foldRight - foldLeft) - bottomGroupWidth) / 2f
+    val bottomButtonWidth = min(buttonHeight * assets.buttonAspectRatio, bottomGroupWidth * 0.31f)
+    val bottomButtonCenterInset = bottomButtonWidth / 2f
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionLeftRect,
+      centerX = bottomLeft + bottomButtonCenterInset,
       top = bottomTop,
       height = buttonHeight,
-      desiredGap = bottomGap,
-      maxWidth = foldRight - foldLeft - dp(32f),
+      maxWidth = bottomButtonWidth,
+    )
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionKeepRect,
+      centerX = bottomLeft + bottomGroupWidth / 2f,
+      top = bottomTop,
+      height = buttonHeight,
+      maxWidth = bottomButtonWidth,
+    )
+    buttonLayouter.layoutAspectButton(
+      rect = coverActionRightRect,
+      centerX = bottomLeft + bottomGroupWidth - bottomButtonCenterInset,
+      top = bottomTop,
+      height = buttonHeight,
+      maxWidth = bottomButtonWidth,
     )
 
-    val topTotalWidth = min(dp(430f), foldRight - foldLeft - dp(32f))
+    val topTotalWidth = min(dp(430f), controlsWidth)
     val topLeft = foldLeft + ((foldRight - foldLeft) - topTotalWidth) / 2f
-    val top = foldTop + dp(18f)
+    val top = foldTop + dp(18f) * controlScale
     val topButtonWidth = min(buttonHeight * assets.buttonAspectRatio, topTotalWidth * 0.36f)
     val topButtonCenterInset = topButtonWidth / 2f
     buttonLayouter.layoutAspectButton(
@@ -1010,8 +1009,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       pressedToolbarButton == MemorialToolbarButton.CoverKeep,
     )
 
-    val counter =
-      "第${(coverStackIndex + 1).toChineseCount()}封，共${expectedDossierCount().toChineseCount()}封"
+    val counter = coverCounterText()
     drawCenteredText(
       canvas,
       counter,
@@ -1028,6 +1026,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
       coverActionKeepRect.contains(x, y) -> MemorialStamp.Keep
       coverActionOpenRect.contains(x, y) -> MemorialStamp.Collapse
       else -> null
+    }
+  }
+
+  private fun coverCounterText(): String {
+    val current = coverStackIndex + 1
+    val total = expectedDossierCount()
+    return if (foldRight - foldLeft < dp(420f)) {
+      "$current/$total"
+    } else {
+      "第${current.toChineseCount()}封，共${total.toChineseCount()}封"
     }
   }
 
@@ -1155,17 +1163,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
     )
       return
     val summary = currentDossier()
-    val side =
-      min(
-        min(dp(388f), cover.width * 0.9f),
-        min(foldRight - foldLeft - dp(40f), foldBottom - foldTop - dp(104f)),
-      )
-    if (side <= 0f) return
+    val rectWidth = min(dp(520f), foldRight - foldLeft - dp(20f))
+    val rectHeight = min(dp(330f), foldBottom - foldTop - dp(76f))
+    if (rectWidth <= 0f || rectHeight <= 0f) return
     val centerX = foldLeft + (foldRight - foldLeft) / 2f
-    val centerY = cover.top + cover.height * 0.48f
-    val left = (centerX - side / 2f).coerceIn(foldLeft + dp(20f), foldRight - dp(20f) - side)
-    val top = (centerY - side / 2f).coerceIn(foldTop + dp(22f), foldBottom - dp(22f) - side)
-    val rect = RectF(left, top, left + side, top + side)
+    val centerY = cover.top + cover.height * 0.5f
+    val left =
+      (centerX - rectWidth / 2f).coerceIn(foldLeft + dp(10f), foldRight - dp(10f) - rectWidth)
+    val top =
+      (centerY - rectHeight / 2f).coerceIn(foldTop + dp(18f), foldBottom - dp(18f) - rectHeight)
+    val rect = RectF(left, top, left + rectWidth, top + rectHeight)
 
     val alpha = summaryAlpha.coerceIn(0f, 1f)
     val layerAlpha = (255f * alpha).roundToInt().coerceIn(0, 255)
@@ -1178,47 +1185,35 @@ internal class MemorialFoldView(context: Context) : View(context) {
     drawPaperPanel(
       canvas = canvas,
       rect = rect,
-      pageIndex = 37 + coverStackIndex,
       clippedCircle = false,
     )
-    drawDoubleGoldFrame(canvas, rect, outerInset = dp(15f), innerInset = dp(24f))
-    val ornamentRect = RectF(rect).apply { inset(dp(24f), dp(24f)) }
-    drawCoverCornerOrnaments(canvas, ornamentRect, sizeScale = 0.14f)
+    drawDoubleGoldFrame(canvas, rect, outerInset = dp(10f), innerInset = dp(17f))
+    val ornamentRect = RectF(rect).apply { inset(dp(17f), dp(17f)) }
+    drawCoverCornerOrnaments(canvas, ornamentRect, sizeScale = 0.1f)
 
     val summaryTitlePaint =
       TextPaint(paints.itemTitle).apply {
-        textSize = sp(26f)
+        textSize = sp(22f)
         textAlign = Paint.Align.LEFT
         color = MEMORIAL_INK_BROWN
       }
-    val sourcePaint =
-      TextPaint(paints.itemMeta).apply {
-        textSize = sp(18f)
-        textAlign = Paint.Align.LEFT
-        color = IMPERIAL_GOLD_DARK
-      }
     val bodyPaint =
       TextPaint(paints.author).apply {
-        textSize = sp(20f)
+        textSize = sp(17f)
         textAlign = Paint.Align.LEFT
         color = MEMORIAL_INK_BROWN
       }
 
-    val contentWidth = (rect.width() * 0.74f).roundToInt().coerceAtLeast(1)
+    val contentWidth = (rect.width() - dp(64f)).roundToInt().coerceAtLeast(1)
     val contentLeft = rect.centerX() - contentWidth / 2f
     val titleLayout =
       buildEllipsizedTextLayout(summary.title, summaryTitlePaint, contentWidth, 1.18f, 1)
-    val sourceLayout =
-      buildEllipsizedTextLayout(summary.source, sourcePaint, contentWidth, 1.18f, 1)
-    val bodyLayout = buildEllipsizedTextLayout(summary.summary, bodyPaint, contentWidth, 1.42f, 4)
-    val gap1 = dp(13f)
-    val gap2 = dp(18f)
-    val totalHeight = titleLayout.height + gap1 + sourceLayout.height + gap2 + bodyLayout.height
+    val bodyLayout = buildEllipsizedTextLayout(summary.summary, bodyPaint, contentWidth, 1.36f, 6)
+    val gap = dp(12f)
+    val totalHeight = titleLayout.height + gap + bodyLayout.height
     var y = rect.centerY() - totalHeight / 2f
     drawStaticLayout(canvas, titleLayout, contentLeft, y)
-    y += titleLayout.height + gap1
-    drawStaticLayout(canvas, sourceLayout, contentLeft, y)
-    y += sourceLayout.height + gap2
+    y += titleLayout.height + gap
     drawStaticLayout(canvas, bodyLayout, contentLeft, y)
     canvas.restoreToCount(layer)
     paints.layerAlpha.alpha = previousAlpha
@@ -1226,16 +1221,20 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun drawCompletedState(canvas: Canvas, alpha: Float) {
     if (alpha <= 0.01f) return
+    val viewportWidth = foldRight - foldLeft
+    val viewportHeight = foldBottom - foldTop
+    val compactLayout = pagesPerSpreadForViewport(viewportWidth, viewportHeight) < 2f
     val side =
       min(
-        min(dp(480f), foldRight - foldLeft - dp(52f)),
-        foldBottom - foldTop - dp(56f),
+        min(dp(480f), viewportWidth - dp(52f)),
+        viewportHeight - dp(56f),
       )
     val left = foldLeft + ((foldRight - foldLeft) - side) / 2f
     val top = foldTop + ((foldBottom - foldTop) - side) / 2f
     val rect = RectF(left, top, left + side, top + side)
     paints.layerAlpha.alpha = (255f * alpha.coerceIn(0f, 1f)).roundToInt().coerceIn(0, 255)
     val layer = canvas.saveLayer(rect, paints.layerAlpha)
+    val contentScale = if (compactLayout) (side / dp(420f)).coerceIn(0.72f, 1f) else 1f
 
     assets.completionTexture?.let { texture ->
       canvas.drawBitmap(texture, null, rect, paints.completionImage)
@@ -1243,13 +1242,12 @@ internal class MemorialFoldView(context: Context) : View(context) {
       ?: drawPaperPanel(
         canvas = canvas,
         rect = rect,
-        pageIndex = 61,
         clippedCircle = true,
       )
 
     val completionTitlePaint =
       TextPaint(paints.title).apply {
-        textSize = sp(44f)
+        textSize = sp(44f) * contentScale
         color = AndroidColor.rgb(72, 43, 31)
         textAlign = Paint.Align.CENTER
         typeface = assets.stampTypeface
@@ -1257,7 +1255,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       }
     val completionBodyPaint =
       TextPaint(paints.quote).apply {
-        textSize = sp(22f)
+        textSize = sp(22f) * contentScale
         color = AndroidColor.rgb(72, 43, 31)
         textAlign = Paint.Align.CENTER
         typeface = assets.songTypeface
@@ -1265,14 +1263,22 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val title = "诸折皆毕"
     val body = "伏愿皇上少憩片刻，以养宸躬。"
-    val maxTextWidth = rect.width() * 0.74f
+    val maxTextWidth = rect.width() * 0.72f
     val fittedTitle =
       TextUtils.ellipsize(title, completionTitlePaint, maxTextWidth, TextUtils.TruncateAt.END)
-    val fittedBody =
-      TextUtils.ellipsize(body, completionBodyPaint, maxTextWidth, TextUtils.TruncateAt.END)
-    val titleCenterY = rect.centerY() - rect.height() * 0.18f
+    val titleCenterY =
+      if (compactLayout) {
+        rect.centerY() - rect.height() * 0.28f * contentScale
+      } else {
+        rect.centerY() - rect.height() * 0.18f
+      }
     val bodyCenterY = rect.centerY()
-    val stampCenterY = rect.centerY() + rect.height() * 0.18f
+    val stampCenterY =
+      if (compactLayout) {
+        rect.centerY() + rect.height() * 0.28f * contentScale
+      } else {
+        rect.centerY() + rect.height() * 0.18f
+      }
     drawCenteredText(
       canvas = canvas,
       text = fittedTitle.toString(),
@@ -1280,30 +1286,62 @@ internal class MemorialFoldView(context: Context) : View(context) {
       baseline = titleCenterY + textCenterOffset(completionTitlePaint),
       paint = completionTitlePaint,
     )
-    drawCenteredText(
-      canvas = canvas,
-      text = fittedBody.toString(),
-      x = rect.centerX(),
-      baseline = bodyCenterY + textCenterOffset(completionBodyPaint),
-      paint = completionBodyPaint,
-    )
-    drawHorizontalRetreatStamp(canvas, rect.centerX(), stampCenterY)
+    if (compactLayout) {
+      val bodyLayoutWidth = maxTextWidth.roundToInt().coerceAtLeast(1)
+      val bodyLayout =
+        buildEllipsizedTextLayout(
+          body,
+          TextPaint(completionBodyPaint).apply { textAlign = Paint.Align.LEFT },
+          bodyLayoutWidth,
+          1.22f,
+          2,
+          Layout.Alignment.ALIGN_CENTER,
+        )
+      drawStaticLayout(
+        canvas = canvas,
+        layout = bodyLayout,
+        left = rect.centerX() - bodyLayoutWidth / 2f,
+        top = bodyCenterY - bodyLayout.height / 2f,
+      )
+    } else {
+      val fittedBody =
+        TextUtils.ellipsize(
+          body,
+          completionBodyPaint,
+          rect.width() * 0.74f,
+          TextUtils.TruncateAt.END,
+        )
+      drawCenteredText(
+        canvas = canvas,
+        text = fittedBody.toString(),
+        x = rect.centerX(),
+        baseline = bodyCenterY + textCenterOffset(completionBodyPaint),
+        paint = completionBodyPaint,
+      )
+    }
+    drawHorizontalRetreatStamp(canvas, rect.centerX(), stampCenterY, contentScale)
     canvas.restoreToCount(layer)
     paints.layerAlpha.alpha = 255
   }
 
-  private fun drawHorizontalRetreatStamp(canvas: Canvas, cx: Float, cy: Float) {
+  private fun drawHorizontalRetreatStamp(
+    canvas: Canvas,
+    cx: Float,
+    cy: Float,
+    contentScale: Float,
+  ) {
     val label = "轻点退朝"
     val textPaint =
       TextPaint(paints.stampText).apply {
-        textSize = sp(27f)
+        textSize = sp(27f) * contentScale
         color = AndroidColor.WHITE
         textAlign = Paint.Align.CENTER
         style = Paint.Style.FILL
         strokeWidth = 0f
       }
-    val rectWidth = max(dp(132f), textPaint.measureText(label) + dp(22f))
-    val rectHeight = dp(50f)
+    val rectWidth =
+      max(dp(132f) * contentScale, textPaint.measureText(label) + dp(22f) * contentScale)
+    val rectHeight = dp(50f) * contentScale
     val rect =
       RectF(cx - rectWidth / 2f, cy - rectHeight / 2f, cx + rectWidth / 2f, cy + rectHeight / 2f)
     val texture = assets.pendingNoteStampTexture
@@ -1384,16 +1422,18 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawVerdictToolbar(canvas: Canvas) {
-    val toolbarHeight = dp(52f)
-    val toolbarTop = foldBottom - toolbarHeight - dp(18f)
-    val gap = dp(18f)
+    val controlsWidth = controlsViewportWidth()
+    val controlScale = controlsResponsiveScale()
+    val toolbarHeight = dp(52f) * controlScale
+    val toolbarTop = foldBottom - toolbarHeight - dp(18f) * controlScale
+    val gap = dp(18f) * controlScale
     buttonLayouter.layoutButtonRow(
       rects = listOf(toolbarButtonRect1, toolbarButtonRect2),
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
       top = toolbarTop,
       height = toolbarHeight,
       desiredGap = gap,
-      maxWidth = foldRight - foldLeft - dp(72f),
+      maxWidth = controlsWidth,
     )
     drawToolbarButton(
       canvas,
@@ -1410,14 +1450,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawCollapseButton(canvas: Canvas) {
-    val buttonHeight = dp(42f)
-    val top = foldTop + dp(18f)
+    val controlsWidth = controlsViewportWidth()
+    val controlScale = controlsResponsiveScale()
+    val buttonHeight = dp(42f) * controlScale
+    val top = foldTop + dp(18f) * controlScale
     buttonLayouter.layoutAspectButton(
       rect = collapseButtonRect,
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
       top = top,
       height = buttonHeight,
-      maxWidth = foldRight - foldLeft - dp(72f),
+      maxWidth = controlsWidth,
     )
     drawToolbarButton(
       canvas,
@@ -1462,6 +1504,18 @@ internal class MemorialFoldView(context: Context) : View(context) {
       toolbarButtonRect2.contains(x, y) -> MemorialStamp.Dislike
       else -> null
     }
+  }
+
+  private fun controlsViewportWidth(): Float {
+    return (foldRight - foldLeft - controlsHorizontalInset() * 2f).coerceAtLeast(1f)
+  }
+
+  private fun controlsHorizontalInset(): Float {
+    return if (foldRight - foldLeft < dp(420f)) dp(10f) else 0f
+  }
+
+  private fun controlsResponsiveScale(): Float {
+    return (controlsViewportWidth() / dp(360f)).coerceIn(0.86f, 1f)
   }
 
   private fun drawStampOverlay(canvas: Canvas) {
@@ -1631,23 +1685,18 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun rebuildLayout(viewWidth: Int, viewHeight: Int) {
     if (viewWidth <= 0 || viewHeight <= 0) return
 
-    foldLeft = dp(20f)
-    foldRight = viewWidth - dp(20f)
+    val previousStartPageIndex = readingStartPageIndexForScroll()
+    foldLeft = 0f
+    foldRight = viewWidth.toFloat()
     foldTop = dp(20f)
     foldBottom = viewHeight - dp(20f)
 
     val viewportWidth = (foldRight - foldLeft).coerceAtLeast(1f)
     val viewportHeight = (foldBottom - foldTop).coerceAtLeast(1f)
-    articleWidth =
-      if (viewportWidth >= dp(700f)) {
-          (viewportWidth / 2f).coerceAtMost(dp(600f))
-        } else {
-          viewportWidth.coerceAtMost(dp(600f))
-        }
-        .coerceAtLeast(dp(280f))
-    val articleHeight = min(dp(760f), viewportHeight * 0.78f).coerceAtLeast(dp(520f))
+    val articleSize = resolvedArticleSizeForViewport(viewportWidth, viewportHeight)
+    articleWidth = articleSize.width
+    val articleHeight = articleSize.height
     val articleTop = foldTop + (viewportHeight - articleHeight) / 2f
-    val contentWidth = (articleWidth - dp(80f)).roundToInt().coerceAtLeast(1)
     var nextLeft = 0f
     articles = pages.mapIndexed { index, page ->
       ArticleLayout(
@@ -1663,16 +1712,30 @@ internal class MemorialFoldView(context: Context) : View(context) {
         }
     }
 
-    maxScrollX = max(0f, nextLeft - viewportWidth)
-    foldScrollX = foldScrollX.coerceIn(0f, maxScrollX)
+    maxScrollX =
+      max(0f, nextLeft - articleWidth * pagesPerSpreadForViewport(viewportWidth, viewportHeight))
+    foldScrollX =
+      if (stage == MemorialStage.Expanded) {
+        readingSnapTargetForPage(previousStartPageIndex)
+      } else {
+        foldScrollX.coerceIn(0f, maxScrollX)
+      }
   }
 
   private fun paginateDossierBody(dossier: PendingMemorialDossier): List<String> {
     val pageWidth = resolvedArticleWidth(width)
     val pageHeight = resolvedArticleHeight(width, height)
-    val contentWidth = (pageWidth - dp(84f)).roundToInt().coerceAtLeast(1)
-    val firstBodyHeight = (pageHeight - dp(126f) - dp(54f)).coerceAtLeast(dp(96f))
-    val bodyHeight = (pageHeight - dp(64f) - dp(54f)).coerceAtLeast(dp(128f))
+    val scale = articleResponsiveScale(pageWidth)
+    val horizontalInset = responsiveDp(42f, pageWidth)
+    val contentWidth = (pageWidth - horizontalInset * 2f).roundToInt().coerceAtLeast(1)
+    val firstBodyHeight =
+      (pageHeight - responsiveDp(126f, pageWidth) - responsiveDp(54f, pageWidth)).coerceAtLeast(
+        dp(96f) * scale
+      )
+    val bodyHeight =
+      (pageHeight - responsiveDp(64f, pageWidth) - responsiveDp(54f, pageWidth)).coerceAtLeast(
+        dp(128f) * scale
+      )
     return paginator.paginate(
       body = dossier.body,
       contentWidth = contentWidth,
@@ -1682,18 +1745,24 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun resolvedArticleWidth(viewWidth: Int): Float {
-    val viewportWidth = (viewWidth - dp(40f)).coerceAtLeast(1f)
-    return if (viewportWidth >= dp(700f)) {
-        (viewportWidth / 2f).coerceAtMost(dp(600f))
-      } else {
-        viewportWidth.coerceAtMost(dp(600f))
-      }
-      .coerceAtLeast(dp(280f))
+    return resolvedArticleSize(viewWidth, height).width
   }
 
   private fun resolvedArticleHeight(viewWidth: Int, viewHeight: Int): Float {
+    return resolvedArticleSize(viewWidth, viewHeight).height
+  }
+
+  private fun resolvedArticleSize(viewWidth: Int, viewHeight: Int): SizeF {
+    val viewportWidth = viewWidth.toFloat().coerceAtLeast(1f)
     val viewportHeight = (viewHeight - dp(40f)).coerceAtLeast(1f)
-    return min(dp(760f), viewportHeight * 0.78f).coerceAtLeast(dp(520f))
+    return resolvedArticleSizeForViewport(viewportWidth, viewportHeight)
+  }
+
+  private fun resolvedArticleSizeForViewport(viewportWidth: Float, viewportHeight: Float): SizeF {
+    val pagesPerSpread = pagesPerSpreadForViewport(viewportWidth, viewportHeight)
+    val resolvedWidth = (viewportWidth / pagesPerSpread).coerceAtLeast(1f)
+    val resolvedHeight = (viewportHeight * 0.78f).coerceAtLeast(1f)
+    return SizeF(width = resolvedWidth, height = resolvedHeight)
   }
 
   private fun calculateTransform(
@@ -1763,8 +1832,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawReadingState(canvas: Canvas, viewportWidth: Float) {
+    val contentInset = readingContentInset(viewportWidth)
     for (article in articles) {
-      val screenLeft = foldLeft + article.left - foldScrollX
+      val screenLeft = foldLeft + contentInset + article.left - foldScrollX
       val transform =
         calculateTransform(
           screenLeft = screenLeft,
@@ -1795,8 +1865,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
     if (articles.isEmpty()) return false
     val viewportWidth = foldRight - foldLeft
     if (viewportWidth <= 0f) return false
+    val contentInset = readingContentInset(viewportWidth)
     return articles.any { article ->
-      val screenLeft = foldLeft + article.left - foldScrollX
+      val screenLeft = foldLeft + contentInset + article.left - foldScrollX
       val transform =
         calculateTransform(
           screenLeft = screenLeft,
@@ -1919,9 +1990,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
     if (article.page.type == MemorialPageType.Cover) {
       drawCoverBackground(canvas, articleRect, coverSequenceIndex)
     } else {
-      drawPaperBackground(canvas, articleRect, rotated = article.pageIndex % 2 == 1)
+      drawPaperBackground(canvas, articleRect, rotated = false)
     }
-    drawPaperAging(canvas, articleRect, article.pageIndex)
+    drawPaperAging(canvas, articleRect)
     drawArticleSurface(canvas, articleRect)
     drawPageContent(canvas, article, articleRect, coverSequenceIndex)
     if (article.page.type == MemorialPageType.Cover && coverSequenceIndex == coverStackIndex) {
@@ -2029,7 +2100,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun drawPaperPanel(
     canvas: Canvas,
     rect: RectF,
-    pageIndex: Int,
     clippedCircle: Boolean,
   ) {
     canvas.save()
@@ -2040,14 +2110,14 @@ internal class MemorialFoldView(context: Context) : View(context) {
     }
     paints.article.color = STAMP_PAPER
     canvas.drawRect(rect, paints.article)
-    drawPaperBackground(canvas, rect, rotated = pageIndex % 2 == 1)
-    drawPaperAging(canvas, rect, pageIndex)
+    drawPaperBackground(canvas, rect, rotated = false)
+    drawPaperAging(canvas, rect)
     drawArticleSurface(canvas, rect)
     paints.article.color = AndroidColor.WHITE
     canvas.restore()
   }
 
-  private fun drawPaperAging(canvas: Canvas, rect: RectF, pageIndex: Int) {
+  private fun drawPaperAging(canvas: Canvas, rect: RectF) {
     paints.paperAging.shader =
       LinearGradient(
         rect.left,
@@ -2083,12 +2153,11 @@ internal class MemorialFoldView(context: Context) : View(context) {
     canvas.drawRect(rect, paints.paperAging)
     paints.paperAging.shader = null
 
-    val random = Random(pageIndex * 1103515245 + 12345)
     repeat(26) {
-      val radius = dp(random.nextInt(1, 4).toFloat()) * 0.45f
-      val x = rect.left + random.nextFloat() * rect.width()
-      val y = rect.top + random.nextFloat() * rect.height()
-      val alpha = random.nextInt(5, 13)
+      val radius = dp(1f + stableNoise(StablePaperAgingSeed, it, 3) * 2f) * 0.45f
+      val x = rect.left + stableNoise(StablePaperAgingSeed, it, 7) * rect.width()
+      val y = rect.top + stableNoise(StablePaperAgingSeed, it, 11) * rect.height()
+      val alpha = (5f + stableNoise(StablePaperAgingSeed, it, 13) * 8f).roundToInt()
       paints.paperAging.color = AndroidColor.argb(alpha, 70, 46, 22)
       canvas.drawCircle(x, y, radius, paints.paperAging)
     }
@@ -2125,8 +2194,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
       shadowRight = min(rect.right, clampedPivotX + shadowWidth)
       colors =
         intArrayOf(
-          AndroidColor.argb(peakAlpha, 72, 48, 26),
-          AndroidColor.argb((peakAlpha * 0.34f).roundToInt(), 90, 68, 38),
+          AndroidColor.argb(peakAlpha, 0, 0, 0),
+          AndroidColor.argb((peakAlpha * 0.26f).roundToInt(), 0, 0, 0),
           AndroidColor.TRANSPARENT,
         )
     } else {
@@ -2135,8 +2204,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
       colors =
         intArrayOf(
           AndroidColor.TRANSPARENT,
-          AndroidColor.argb((peakAlpha * 0.34f).roundToInt(), 90, 68, 38),
-          AndroidColor.argb(peakAlpha, 72, 48, 26),
+          AndroidColor.argb((peakAlpha * 0.26f).roundToInt(), 0, 0, 0),
+          AndroidColor.argb(peakAlpha, 0, 0, 0),
         )
     }
 
@@ -2174,8 +2243,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
       edgeRight = min(rect.right, pivotX + edgeWidth)
       colors =
         intArrayOf(
-          AndroidColor.argb((30f * t).roundToInt(), 94, 65, 35),
-          AndroidColor.argb((18f * t).roundToInt(), 210, 181, 124),
+          AndroidColor.argb((24f * t).roundToInt(), 0, 0, 0),
+          AndroidColor.argb((12f * t).roundToInt(), 255, 255, 255),
           AndroidColor.TRANSPARENT,
         )
     } else {
@@ -2184,8 +2253,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
       colors =
         intArrayOf(
           AndroidColor.TRANSPARENT,
-          AndroidColor.argb((18f * t).roundToInt(), 210, 181, 124),
-          AndroidColor.argb((30f * t).roundToInt(), 94, 65, 35),
+          AndroidColor.argb((12f * t).roundToInt(), 255, 255, 255),
+          AndroidColor.argb((24f * t).roundToInt(), 0, 0, 0),
         )
     }
     if (edgeRight <= edgeLeft) return
@@ -2273,6 +2342,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     page: MemorialPage,
     coverSequenceIndex: Int,
   ) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier =
       dossierFor(if (page.type == MemorialPageType.Cover) coverSequenceIndex else page.dossierIndex)
     val labelWidth = rect.width() * 0.42f
@@ -2287,7 +2357,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
     drawPaperPanel(
       canvas = canvas,
       rect = label,
-      pageIndex = 73,
       clippedCircle = false,
     )
     drawInsideStrokeRect(canvas, label, paints.gold)
@@ -2304,29 +2373,34 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val titlePaint =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = sp(22f)
+        textSize = responsiveSp(22f, rect.width())
         color = paints.coverTitle.color
         typeface = assets.stampTypeface
         textAlign = Paint.Align.CENTER
       }
-    val titleLineGap = dp(5f)
-    val coverTitleLineGap = dp(24f)
+    val coverTitlePaint =
+      TextPaint(paints.coverTitle).apply {
+        textSize = paints.coverTitle.textSize * scale
+      }
+    val titleLineGap = responsiveDp(5f, rect.width())
+    val coverTitleLineGap = responsiveDp(24f, rect.width())
     val titleText =
       ellipsizeVerticalText(
         text = dossier.title,
         paint = titlePaint,
-        maxHeight = innerLabel.height() - dp(76f),
+        maxHeight = innerLabel.height() - responsiveDp(76f, rect.width()),
         lineGap = titleLineGap,
       )
     val titleColumnWidth = verticalTextWidth(titleText, titlePaint)
-    val coverColumnWidth = verticalTextWidth("奏章", paints.coverTitle)
-    val columnGap = dp(5f)
+    val coverColumnWidth = verticalTextWidth("奏章", coverTitlePaint)
+    val columnGap = responsiveDp(5f, rect.width())
     val groupWidth = titleColumnWidth + columnGap + coverColumnWidth
     val groupLeft = label.centerX() - groupWidth / 2f
-    val coverTitleHeight = verticalTextHeight("奏章", paints.coverTitle, coverTitleLineGap)
+    val coverTitleHeight = verticalTextHeight("奏章", coverTitlePaint, coverTitleLineGap)
     val titleHeight = verticalTextHeight(titleText, titlePaint, titleLineGap)
     val titleTop = innerLabel.centerY() - titleHeight / 2f
-    val coverTitleTop = innerLabel.centerY() - coverTitleHeight / 2f - dp(10f)
+    val coverTitleTop =
+      innerLabel.centerY() - coverTitleHeight / 2f - responsiveDp(10f, rect.width())
     drawVerticalText(
       canvas = canvas,
       text = titleText,
@@ -2341,7 +2415,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       text = "奏章",
       centerX = coverColumnX,
       top = coverTitleTop,
-      paint = paints.coverTitle,
+      paint = coverTitlePaint,
       lineGap = coverTitleLineGap,
     )
   }
@@ -2540,14 +2614,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawDirectoryContent(canvas: Canvas, rect: RectF, page: MemorialPage) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier = dossierFor(page.dossierIndex)
     val directoryTitlePaint =
       TextPaint(paints.title).apply {
         typeface = assets.stampTypeface
+        textSize = paints.title.textSize * scale
       }
-    var y = rect.top + dp(48f)
+    var y = rect.top + responsiveDp(48f, rect.width())
     drawCenteredText(canvas, "本折提要", rect.centerX(), y, directoryTitlePaint)
-    y += dp(28f)
+    y += responsiveDp(28f, rect.width())
     drawCenteredText(
       canvas,
       if (readerMode == MemorialReaderMode.ArticleReader) {
@@ -2559,39 +2635,42 @@ internal class MemorialFoldView(context: Context) : View(context) {
       y,
       paints.meta,
     )
-    y += dp(36f)
+    y += responsiveDp(36f, rect.width())
 
-    val itemLeft = rect.left + dp(44f)
-    val itemWidth = rect.width() - dp(88f)
+    val horizontalInset = responsiveDp(44f, rect.width())
+    val itemLeft = rect.left + horizontalInset
+    val itemWidth = rect.width() - horizontalInset * 2f
     drawTextBlock(canvas, dossier.title, paints.itemTitle, itemLeft, y, itemWidth, 1.28f, false)
-    y += dp(38f)
-    drawTextBlock(canvas, dossier.source, paints.itemMeta, itemLeft, y, itemWidth, 1.32f, false)
-    y += dp(24f)
+    y += responsiveDp(38f, rect.width())
     y = drawDirectoryTags(canvas, dossier.tags.ifEmpty { listOf("待批") }, itemLeft, y, itemWidth)
-    y += dp(18f)
+    y += responsiveDp(18f, rect.width())
 
     val image = assets.articleImageFor(dossier.imageResName)
     if (image != null) {
-      val availableForImage = rect.bottom - y - dp(160f)
-      if (availableForImage >= dp(92f)) {
+      val availableForImage = rect.bottom - y - responsiveDp(160f, rect.width())
+      if (availableForImage >= responsiveDp(92f, rect.width())) {
         val maxImageHeight = min(itemWidth, availableForImage)
         val imageHeight =
           min(itemWidth / (image.width.toFloat() / image.height.toFloat()), maxImageHeight)
         val imageRect = RectF(itemLeft, y, itemLeft + itemWidth, y + imageHeight)
         drawArticlePreviewImage(canvas, image, imageRect)
-        y = imageRect.bottom + dp(22f)
+        y = imageRect.bottom + responsiveDp(22f, rect.width())
       }
     }
 
     canvas.drawLine(itemLeft, y, itemLeft + itemWidth, y, paints.dashed)
-    y += dp(22f)
+    y += responsiveDp(22f, rect.width())
     val summaryLayout =
       buildEllipsizedTextLayout(
         dossier.summary,
         paints.author,
         itemWidth.roundToInt().coerceAtLeast(1),
         1.62f,
-        max(2, ((rect.bottom - y - dp(62f)) / (paints.author.textSize * 1.62f)).roundToInt()),
+        max(
+          2,
+          ((rect.bottom - y - responsiveDp(62f, rect.width())) / (paints.author.textSize * 1.62f))
+            .roundToInt(),
+        ),
       )
     drawStaticLayout(
       canvas = canvas,
@@ -2603,21 +2682,24 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawBodyContent(canvas: Canvas, rect: RectF, page: MemorialPage) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier = dossierFor(page.dossierIndex)
     val segments =
       bodySegmentsByDossierIndex[page.dossierIndex]
         ?: pages.mapNotNull { if (it.dossierIndex == page.dossierIndex) it.bodyText else null }
     val segment =
       page.bodyText ?: segments.getOrElse(page.bodySegmentIndex) { segments.lastOrNull().orEmpty() }
-    var y = rect.top + dp(54f)
+    var y = rect.top + responsiveDp(54f, rect.width())
     if (page.bodySegmentIndex == 0) {
       val bodyTitlePaint =
         TextPaint(paints.title).apply {
           typeface = assets.songTypeface
+          textSize = paints.title.textSize * scale
           letterSpacing = 0.02f
           textAlign = Paint.Align.LEFT
         }
-      val titleWidth = (rect.width() - dp(108f)).roundToInt().coerceAtLeast(1)
+      val titleInset = responsiveDp(54f, rect.width())
+      val titleWidth = (rect.width() - titleInset * 2f).roundToInt().coerceAtLeast(1)
       val titleLayout =
         buildEllipsizedTextLayout(
           dossier.title,
@@ -2633,16 +2715,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
         left = rect.left + (rect.width() - titleLayout.width) / 2f,
         top = y,
       )
-      y += titleLayout.height + dp(18f)
-      drawCenteredText(canvas, dossier.source, rect.centerX(), y, paints.meta)
-      y += dp(42f)
+      y += titleLayout.height + responsiveDp(18f, rect.width())
+      y += responsiveDp(18f, rect.width())
     } else {
-      y = rect.top + dp(64f)
+      y = rect.top + responsiveDp(64f, rect.width())
     }
-    val left = rect.left + dp(42f)
-    val width = rect.width() - dp(84f)
+    val horizontalInset = responsiveDp(42f, rect.width())
+    val left = rect.left + horizontalInset
+    val width = rect.width() - horizontalInset * 2f
     canvas.save()
-    canvas.clipRect(left, y, left + width, rect.bottom - dp(54f))
+    canvas.clipRect(left, y, left + width, rect.bottom - responsiveDp(54f, rect.width()))
     drawTextBlock(
       canvas,
       segment,
@@ -2854,10 +2936,13 @@ internal class MemorialFoldView(context: Context) : View(context) {
     }
   }
 
+  private fun finishReadingDragWithSnap() {
+    snapToNearestSpread()
+  }
+
   private fun snapToNearestSpread() {
     if (articleWidth <= 0f || maxScrollX <= 0f) return
-    val target =
-      (foldScrollX / articleWidth).roundToInt().times(articleWidth).coerceIn(0f, maxScrollX)
+    val target = nearestReadingSnapTarget(foldScrollX)
     if (abs(target - foldScrollX) < 1f) {
       foldScrollX = target
       invalidate()
@@ -2868,7 +2953,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     scrollReturnAnimator =
       ValueAnimator.ofFloat(start, target).apply {
         duration =
-          ((180L + abs(target - start) / max(1f, articleWidth) * 150L).roundToInt())
+          ((180L + abs(target - start) / max(1f, readingSnapStep()) * 150L).roundToInt())
             .coerceIn(180, 360)
             .toLong()
         interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
@@ -2891,9 +2976,61 @@ internal class MemorialFoldView(context: Context) : View(context) {
       }
   }
 
+  private fun nearestReadingSnapTarget(scrollX: Float): Float {
+    if (articleWidth <= 0f || maxScrollX <= 0f) return 0f
+    val clampedScroll = scrollX.coerceIn(0f, maxScrollX)
+    return readingSnapTargets().minByOrNull { abs(it - clampedScroll) } ?: clampedScroll
+  }
+
+  private fun readingSnapStep(): Float {
+    return articleWidth
+  }
+
+  private fun readingSnapTargets(): List<Float> {
+    if (articleWidth <= 0f || articles.isEmpty()) return listOf(0f)
+    val maxStartPageIndex = maxReadingStartPageIndex()
+    return (0..maxStartPageIndex).map { index -> readingSnapTargetForPage(index) }
+  }
+
+  private fun readingSnapTargetForPage(pageIndex: Int): Float {
+    if (articleWidth <= 0f || maxScrollX <= 0f) return 0f
+    return (pageIndex.coerceIn(0, maxReadingStartPageIndex()) * articleWidth).coerceIn(
+      0f,
+      maxScrollX,
+    )
+  }
+
+  private fun maxReadingStartPageIndex(): Int {
+    val pagesPerSpread =
+      pagesPerSpreadForViewport(foldRight - foldLeft, foldBottom - foldTop)
+        .roundToInt()
+        .coerceIn(1, 2)
+    return (articles.size - pagesPerSpread).coerceAtLeast(0)
+  }
+
+  private fun readingStartPageIndexForScroll(
+    scrollX: Float = foldScrollX,
+    pageWidth: Float = articleWidth,
+  ): Int {
+    if (pageWidth <= 0f) return 0
+    return (scrollX / pageWidth).roundToInt().coerceAtLeast(0)
+  }
+
   private fun dp(value: Float): Float = value * displayDensity
 
   private fun sp(value: Float): Float = value * scaledDensity
+
+  private fun articleResponsiveScale(articleWidth: Float = this.articleWidth): Float {
+    return (articleWidth / dp(360f)).coerceIn(0.82f, 1f)
+  }
+
+  private fun responsiveDp(value: Float, articleWidth: Float = this.articleWidth): Float {
+    return dp(value) * articleResponsiveScale(articleWidth)
+  }
+
+  private fun responsiveSp(value: Float, articleWidth: Float = this.articleWidth): Float {
+    return sp(value) * articleResponsiveScale(articleWidth)
+  }
 
   private fun startOpenAnimationIfReady() {
     if (hasPlayedOpenAnimation || width <= 0 || height <= 0 || articles.isEmpty()) return
@@ -3207,7 +3344,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun returnToCoverForVerdict(onFinished: () -> Unit) {
     hideReadingControlsDuringClose = true
-    scroller.abortAnimation()
     isDragging = false
     returnToFirstSpread {
       foldScrollX = 0f
@@ -3361,6 +3497,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
     expandFromCover()
   }
 
+  private fun closeFromExpandedReader() {
+    if (readerMode == MemorialReaderMode.ReviewStack) {
+      returnToCoverStack(advanceStack = false)
+    } else {
+      closeWithAnimation {
+        onCloseAnimationFinished?.invoke() ?: onAutoDismiss?.invoke()
+      }
+    }
+  }
+
   private fun returnToCoverStack(advanceStack: Boolean) {
     if (articles.isEmpty()) return
     hideReadingControlsDuringClose = advanceStack
@@ -3400,7 +3546,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
       return
     }
 
-    scroller.abortAnimation()
     isDragging = false
     if (stage == MemorialStage.CoverOnly) {
       onFinished()
@@ -3438,8 +3583,6 @@ internal class MemorialFoldView(context: Context) : View(context) {
       return
     }
 
-    scroller.abortAnimation()
-    pendingSpreadSnap = false
     scrollReturnAnimator?.cancel()
     scrollReturnAnimator =
       ValueAnimator.ofFloat(startScrollX, 0f).apply {

@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -88,7 +90,8 @@ private val ZhongshuWorkLight = Color(0xFF55DDEB)
 private val MenxiaWorkLight = ZhongshuWorkLight
 private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
-private const val HomePulseShineMillis = 700
+private const val HomePulseShineMillis = 900
+private const val HomePulseShakePauseMillis = 720L
 private const val HomeWorkTextMinMillis = 420L
 private const val HomeWorkTextMaxMillis = 1860L
 
@@ -163,7 +166,10 @@ fun HomePane(
   var isManagingMinistries by remember { mutableStateOf(false) }
 
   Box(modifier = modifier.testTag("home-pane").fillMaxSize()) {
-    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Box(
+      modifier =
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState(), overscrollEffect = null)
+    ) {
       HomeContentColumn(
         modifier =
           Modifier.padding(
@@ -321,7 +327,7 @@ private fun TitleCell(
         modifier = Modifier.clickable(onClick = onTitlePulseRequested),
       )
       Text(
-        text = "拾取资料、整理主题、轮盘批阅、瀑布流阅读",
+        text = "拾取资料、整理主题、批阅奏折",
         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ImperialDisplayFont),
         color = Color.Black.copy(alpha = 0.72f),
         maxLines = 1,
@@ -364,11 +370,14 @@ private fun HomeFeatureCell(
   val cardMotion = remember { Animatable(0f) }
   LaunchedEffect(pulseActive) {
     if (pulseActive) {
-      cardMotion.snapTo(0f)
-      cardMotion.animateTo(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
-      )
+      while (pulseActive) {
+        cardMotion.snapTo(0f)
+        cardMotion.animateTo(
+          targetValue = 1f,
+          animationSpec = tween(durationMillis = HomePulseShineMillis, easing = LinearEasing),
+        )
+        delay(HomePulseShakePauseMillis)
+      }
     } else {
       cardMotion.snapTo(0f)
     }
@@ -410,21 +419,29 @@ private fun HomeFeatureCell(
     ) {
       BoxWithConstraints(modifier = Modifier.matchParentSize()) {
         val activeOrnamentSize = ornamentSize * 0.5f
-        val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 8.dp
+        val activeOrnamentOffsetY = -(maxHeight / 2f) + activeOrnamentSize / 2f + 2.dp
         val activeOrnamentOffsetX =
           if (ornamentAlignment == Alignment.CenterStart) 8.dp else (-8).dp
         val ornamentX = lerpDp(ornamentOffsetX, activeOrnamentOffsetX, workProgress)
         val ornamentY = lerpDp(ornamentOffsetY, activeOrnamentOffsetY, workProgress)
         val animatedOrnamentSize = lerpDp(ornamentSize, activeOrnamentSize, workProgress)
         val textOffsetY = -(maxHeight * 0.28f) * workProgress
-        val statusOffsetY = 8.dp * (1f - workProgress)
+        val statusOffsetY = 8.dp * (1f - workProgress) + 8.dp
         HomeOrnament(
           imageRes = ornamentRes,
           modifier =
             Modifier.align(ornamentAlignment)
               .offset(x = ornamentX, y = ornamentY)
               .size(animatedOrnamentSize)
-              .graphicsLayer(scaleX = if (mirrorOrnament) -1f else 1f),
+              .graphicsLayer {
+                scaleX = if (mirrorOrnament) -1f else 1f
+                transformOrigin =
+                  if (ornamentAlignment == Alignment.CenterStart) {
+                    TransformOrigin(0f, 0f)
+                  } else {
+                    TransformOrigin(1f, 0f)
+                  }
+              },
           alpha = if (large) 0.5f else 0.58f,
           tint = ornamentTint,
         )
@@ -475,7 +492,8 @@ private fun HomeFeatureCell(
             text = workText.ifBlank { "loading..." },
             color = workLightColor,
             contentColor = contentColor,
-            modifier = Modifier.align(Alignment.BottomCenter).offset(y = statusOffsetY),
+            modifier =
+              Modifier.align(Alignment.BottomCenter).offset(x = (-6).dp, y = statusOffsetY),
           )
         }
       }
@@ -503,9 +521,9 @@ private fun WorkStatusLine(
     WorkBreathingLight(
       active = active,
       color = color,
-      modifier = Modifier.size(22.dp),
-      haloSize = 22.dp,
-      dotSize = 5.dp,
+      modifier = Modifier.size(26.dp),
+      haloSize = 26.dp,
+      dotSize = 6.dp,
     )
     AnimatedContent(
       targetState = text,
@@ -524,6 +542,7 @@ private fun WorkStatusLine(
         text = activeText,
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
         color = contentColor.copy(alpha = 0.92f),
+        fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.widthIn(max = 128.dp),
@@ -568,16 +587,16 @@ private fun WorkBreathingLight(
       modifier =
         Modifier.matchParentSize()
           .graphicsLayer {
-            scaleX = 0.72f + activeGlow * 0.48f
-            scaleY = 0.72f + activeGlow * 0.48f
-            alpha = 0.12f + intensity * 0.18f + activeGlow * 0.58f
+            scaleX = 0.66f + activeGlow * 0.58f
+            scaleY = 0.66f + activeGlow * 0.58f
+            alpha = 0.16f + intensity * 0.24f + activeGlow * 0.68f
           }
           .background(
             Brush.radialGradient(
               colors =
                 listOf(
-                  color.copy(alpha = 0.82f),
-                  color.copy(alpha = 0.28f),
+                  color.copy(alpha = 0.95f),
+                  color.copy(alpha = 0.36f),
                   Color.Transparent,
                 )
             ),
@@ -587,11 +606,11 @@ private fun WorkBreathingLight(
     Box(
       modifier =
         Modifier.size(dotSize)
-          .shadow(7.dp + 7.dp * intensity, RoundedCornerShape(999.dp), clip = false)
-          .background(color.copy(alpha = 0.3f + intensity * 0.66f), RoundedCornerShape(999.dp))
+          .shadow(9.dp + 9.dp * intensity, RoundedCornerShape(999.dp), clip = false)
+          .background(color.copy(alpha = 0.36f + intensity * 0.64f), RoundedCornerShape(999.dp))
           .border(
-            0.7.dp,
-            Color.White.copy(alpha = 0.34f + intensity * 0.46f),
+            0.8.dp,
+            Color.White.copy(alpha = 0.38f + intensity * 0.5f),
             RoundedCornerShape(999.dp),
           )
     )
@@ -762,9 +781,9 @@ private fun PalaceDashboardBlock(
           modifier = Modifier.weight(1f).height(searchRowHeight),
           onClick = onOpenClipboard,
           testTag = "clipboard-button",
-          ornamentSize = 68.dp,
-          ornamentOffsetX = (-8).dp,
-          ornamentOffsetY = 10.dp,
+          ornamentSize = 60.dp,
+          ornamentOffsetX = 2.dp,
+          ornamentOffsetY = 2.dp,
           ornamentAlignment = Alignment.TopEnd,
           ornamentTint = Color.White,
         )
@@ -799,8 +818,8 @@ private fun SearchCell(
       alpha = 0.66f,
     )
     Column(
-      modifier = Modifier.fillMaxSize().padding(14.dp),
-      verticalArrangement = Arrangement.SpaceBetween,
+      modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+      verticalArrangement = Arrangement.SpaceEvenly,
     ) {
       Text(
         text = "藏经阁",
@@ -808,31 +827,58 @@ private fun SearchCell(
         color = Color.White,
         fontWeight = FontWeight.Normal,
       )
+      val searchTextStyle =
+        MaterialTheme.typography.bodyMedium.copy(
+          color = Color.White,
+          fontFamily = ImperialDisplayFont,
+        )
       BasicTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChanged,
         singleLine = true,
-        textStyle =
-          MaterialTheme.typography.bodyMedium.copy(
-            color = Color.White,
-            fontFamily = ImperialDisplayFont,
-          ),
+        textStyle = searchTextStyle,
         modifier = Modifier.fillMaxWidth().testTag("home-search-input"),
         decorationBox = { innerTextField ->
           Box(
             modifier =
-              Modifier.fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.18f))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+              Modifier.fillMaxWidth().height(34.dp).background(Color.White.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.CenterStart,
           ) {
-            if (searchQuery.isBlank()) {
-              Text(
-                text = "查找主题或资料...",
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = ImperialDisplayFont),
-                color = Color.White.copy(alpha = 0.62f),
-              )
+            Box(
+              modifier =
+                Modifier.matchParentSize()
+                  .padding(start = 10.dp, end = if (searchQuery.isBlank()) 10.dp else 34.dp),
+              contentAlignment = Alignment.CenterStart,
+            ) {
+              if (searchQuery.isBlank()) {
+                Text(
+                  text = "查找主题或资料...",
+                  style = searchTextStyle,
+                  color = Color.White.copy(alpha = 0.62f),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+              }
+              innerTextField()
             }
-            innerTextField()
+            if (searchQuery.isNotBlank()) {
+              Box(
+                modifier =
+                  Modifier.align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(34.dp)
+                    .clickable { onSearchQueryChanged("") }
+                    .testTag("home-search-clear-button"),
+                contentAlignment = Alignment.Center,
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Close,
+                  contentDescription = "清空搜索",
+                  tint = Color.White.copy(alpha = 0.86f),
+                  modifier = Modifier.size(15.dp),
+                )
+              }
+            }
           }
         },
       )
@@ -872,7 +918,7 @@ private fun MemorialCell(
   ) {
     HomeOrnament(
       imageRes = R.drawable.home_ornament_memorial,
-      modifier = Modifier.align(Alignment.CenterEnd).offset(x = 24.dp, y = (-18).dp).size(138.dp),
+      modifier = Modifier.align(Alignment.TopEnd).offset(x = 14.dp, y = (-6).dp).size(116.dp),
       alpha = 0.66f,
     )
     Column(modifier = Modifier.align(Alignment.BottomStart).padding(13.dp)) {
@@ -934,8 +980,9 @@ private fun MinistryStampStack(
                   fontSize = MaterialTheme.typography.headlineMedium.fontSize,
                 )
               ) {
-                append("「尚书省」")
+                append("尚书省")
               }
+              append("\u2002")
               withStyle(
                 SpanStyle(
                   color = Color.Black,
@@ -1047,6 +1094,7 @@ private fun FolderResultList(
       MinistryFoldCard(
         folder = folder,
         visual = folderVisual(index),
+        searchQuery = searchQuery,
         onTopicSelected = onTopicSelected,
         onRenameTopic = onRenameTopic,
         onDeleteTopic = onDeleteTopic,
@@ -1062,6 +1110,7 @@ private fun FolderResultList(
 private fun MinistryFoldCard(
   folder: DashboardFolder,
   visual: FolderVisual,
+  searchQuery: String,
   onTopicSelected: (String) -> Unit,
   onRenameTopic: (String) -> Unit,
   onDeleteTopic: (String) -> Unit,
@@ -1104,7 +1153,13 @@ private fun MinistryFoldCard(
         verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
       ) {
         Text(
-          text = folder.title,
+          text =
+            buildHighlightedText(
+              text = folder.title,
+              query = searchQuery,
+              highlightColor = Color.Black,
+              highlightBgColor = Color(0xFFF2D88A).copy(alpha = 0.86f),
+            ),
           style = titleStyle,
           color = Color.Black.copy(alpha = 0.88f),
           fontWeight = FontWeight.Normal,
@@ -1112,7 +1167,13 @@ private fun MinistryFoldCard(
           overflow = TextOverflow.Ellipsis,
         )
         Text(
-          text = visual.description,
+          text =
+            buildHighlightedText(
+              text = visual.description,
+              query = searchQuery,
+              highlightColor = Color.Black,
+              highlightBgColor = Color(0xFFF2D88A).copy(alpha = 0.72f),
+            ),
           style = summaryStyle.copy(fontFamily = ImperialDisplayFont),
           color = Color.Black.copy(alpha = 0.52f),
           fontWeight = FontWeight.Normal,
@@ -1344,13 +1405,14 @@ private fun dashboardFolders(
   itemsByTopic: Map<String, List<KnowledgeItem>>,
   searchQuery: String = "",
 ): List<DashboardFolder> {
+  val now = System.currentTimeMillis()
   if (searchQuery.isNotBlank()) {
-    return topics.map { topic ->
+    return topics.mapIndexed { index, topic ->
       DashboardFolder(
         id = topic.id,
         title = topic.title,
         itemCount = itemsByTopic[topic.id]?.size ?: 0,
-        updatedAtEpochMillis = topic.updatedAtEpochMillis,
+        updatedAtEpochMillis = demoFolderUpdatedAt(index, now),
         topic = topic,
       )
     }
@@ -1361,10 +1423,23 @@ private fun dashboardFolders(
       id = topic?.id ?: "dashboard-folder-${index + 1}",
       title = topic?.title ?: FolderFallbackTitles[index],
       itemCount = topic?.let { itemsByTopic[it.id]?.size ?: 0 } ?: 0,
-      updatedAtEpochMillis = topic?.updatedAtEpochMillis,
+      updatedAtEpochMillis = demoFolderUpdatedAt(index, now),
       topic = topic,
     )
   }
+}
+
+private fun demoFolderUpdatedAt(index: Int, nowMillis: Long): Long {
+  val offsets =
+    listOf(
+      36L * 60_000L,
+      9L * 3_600_000L,
+      2L * 86_400_000L,
+      4L * 86_400_000L,
+      6L * 86_400_000L,
+      8L * 86_400_000L,
+    )
+  return nowMillis - offsets[index.coerceIn(0, offsets.lastIndex)]
 }
 
 internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
@@ -1374,6 +1449,7 @@ internal fun friendlyTime(epochMillis: Long, nowMillis: Long = System.currentTim
     diff < 60_000 -> "刚刚"
     diff < 3_600_000 -> "${(diff / 60_000).toInt().toChineseCount()}分钟前"
     diff < 86_400_000 -> "${(diff / 3_600_000).toInt().toChineseCount()}小时前"
+    diff < 14L * 86_400_000L -> "一周前"
     diff < 2_592_000_000L -> "${(diff / 86_400_000).toInt().toChineseCount()}天前"
     else -> "很久以前"
   }
@@ -1385,8 +1461,12 @@ internal fun buildHighlightedText(
   highlightColor: Color,
   highlightBgColor: Color,
 ): androidx.compose.ui.text.AnnotatedString {
+  val normalizedQuery = query.trim()
+  if (normalizedQuery.isEmpty()) {
+    return buildAnnotatedString { append(text) }
+  }
   val lowerText = text.lowercase()
-  val lowerQuery = query.lowercase()
+  val lowerQuery = normalizedQuery.lowercase()
   return buildAnnotatedString {
     var start = 0
     while (start < text.length) {
@@ -1405,9 +1485,9 @@ internal fun buildHighlightedText(
           color = highlightColor,
         )
       ) {
-        append(text.substring(matchIndex, matchIndex + query.length))
+        append(text.substring(matchIndex, matchIndex + normalizedQuery.length))
       }
-      start = matchIndex + query.length
+      start = matchIndex + normalizedQuery.length
     }
   }
 }
