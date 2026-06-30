@@ -1,11 +1,18 @@
 package com.lyihub.archiveassistant.ui.screens
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +31,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -71,6 +79,7 @@ import com.lyihub.archiveassistant.ui.theme.ImperialIvory
 import com.lyihub.archiveassistant.ui.theme.ImperialTitleFont
 import com.lyihub.archiveassistant.ui.theme.ImperialUmber
 import com.lyihub.archiveassistant.util.toChineseCount
+import kotlin.random.Random
 import kotlinx.coroutines.delay
 
 private val HomeInk = ImperialUmber
@@ -79,13 +88,39 @@ private val ZhongshuWorkLight = Color(0xFF55DDEB)
 private val MenxiaWorkLight = ZhongshuWorkLight
 private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
-private const val HomePulseTargetMillis = HomePulseCycleMillis * HomePulseCyclesPerTarget
 private const val HomePulseShineMillis = 700
+private const val HomeWorkTextMinMillis = 720L
+private const val HomeWorkTextMaxMillis = 1160L
 
 private enum class HomePulseTarget {
   Zhongshu,
   Menxia,
 }
+
+private data class HomeWorkStep(
+  val target: HomePulseTarget,
+  val text: String,
+)
+
+private val ZhongshuWorkTexts =
+  listOf(
+    "读取剪切板内容...",
+    "识别网页地址...",
+    "抓取页面标题...",
+    "提取正文片段...",
+    "生成摘要初稿...",
+    "拟定文章标题...",
+  )
+
+private val MenxiaWorkTexts =
+  listOf(
+    "核对内容类型...",
+    "匹配所属主题...",
+    "分送六部归档...",
+    "预备瀑布流条目...",
+    "筛选待批奏章...",
+    "更新最近主题...",
+  )
 
 private val FolderFallbackTitles =
   listOf(
@@ -194,14 +229,20 @@ private fun ColumnScope.HomeMosaic(
   onToggleManage: () -> Unit,
 ) {
   var pulseTarget by remember { mutableStateOf<HomePulseTarget?>(null) }
+  var pulseText by remember { mutableStateOf("") }
   var pulseRunId by remember { mutableStateOf(0) }
   LaunchedEffect(pulseRunId) {
     if (pulseRunId == 0) return@LaunchedEffect
-    pulseTarget = HomePulseTarget.Zhongshu
-    delay(HomePulseTargetMillis.toLong())
-    pulseTarget = HomePulseTarget.Menxia
-    delay(HomePulseTargetMillis.toLong())
+    val steps =
+      ZhongshuWorkTexts.map { HomeWorkStep(HomePulseTarget.Zhongshu, it) } +
+        MenxiaWorkTexts.map { HomeWorkStep(HomePulseTarget.Menxia, it) }
+    steps.forEach { step ->
+      pulseTarget = step.target
+      pulseText = step.text
+      delay(Random.nextLong(HomeWorkTextMinMillis, HomeWorkTextMaxMillis + 1))
+    }
     pulseTarget = null
+    pulseText = ""
   }
   HomeHeaderRow(
     appTitle = appTitle,
@@ -218,6 +259,7 @@ private fun ColumnScope.HomeMosaic(
     validationMessage = validationMessage,
     smartSummarizationMessage = smartSummarizationMessage,
     pulseTarget = pulseTarget,
+    pulseText = pulseText,
     modifier = Modifier.fillMaxWidth(),
   )
   MinistryStampStack(
@@ -310,6 +352,7 @@ private fun HomeFeatureCell(
   mirrorOrnament: Boolean = false,
   textAlignment: Alignment = Alignment.BottomStart,
   pulseActive: Boolean = false,
+  workText: String = "",
   workLightColor: Color? = null,
 ) {
   val workProgress by
@@ -429,6 +472,7 @@ private fun HomeFeatureCell(
           WorkStatusLine(
             active = pulseActive,
             progress = workProgress,
+            text = workText.ifBlank { "loading..." },
             color = workLightColor,
             contentColor = contentColor,
             modifier = Modifier.align(Alignment.BottomCenter).offset(y = statusOffsetY),
@@ -443,6 +487,7 @@ private fun HomeFeatureCell(
 private fun WorkStatusLine(
   active: Boolean,
   progress: Float,
+  text: String,
   color: Color,
   contentColor: Color,
   modifier: Modifier = Modifier,
@@ -462,12 +507,28 @@ private fun WorkStatusLine(
       haloSize = 22.dp,
       dotSize = 5.dp,
     )
-    Text(
-      text = "loading...",
-      style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
-      color = contentColor.copy(alpha = 0.92f),
-      maxLines = 1,
-    )
+    AnimatedContent(
+      targetState = text,
+      transitionSpec = {
+        (slideInVertically(animationSpec = tween(180)) { height -> height } +
+            fadeIn(animationSpec = tween(180)))
+          .togetherWith(
+            slideOutVertically(animationSpec = tween(150)) { height -> -height } +
+              fadeOut(animationSpec = tween(150))
+          )
+          .using(SizeTransform(clip = true))
+      },
+      label = "homeWorkStatusText",
+    ) { activeText ->
+      Text(
+        text = activeText,
+        style = MaterialTheme.typography.bodySmall.copy(fontFamily = ImperialDisplayFont),
+        color = contentColor.copy(alpha = 0.92f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.widthIn(max = 128.dp),
+      )
+    }
   }
 }
 
@@ -623,6 +684,7 @@ private fun PalaceDashboardBlock(
   validationMessage: String?,
   smartSummarizationMessage: String?,
   pulseTarget: HomePulseTarget?,
+  pulseText: String,
   modifier: Modifier = Modifier,
 ) {
   BoxWithConstraints(modifier = modifier) {
@@ -657,6 +719,7 @@ private fun PalaceDashboardBlock(
             ornamentOffsetX = 18.dp,
             ornamentTint = Color.White,
             pulseActive = pulseTarget == HomePulseTarget.Zhongshu,
+            workText = pulseText,
             workLightColor = ZhongshuWorkLight,
           )
           HomeFeatureCell(
@@ -674,6 +737,7 @@ private fun PalaceDashboardBlock(
             ornamentAlignment = Alignment.CenterStart,
             textAlignment = Alignment.BottomEnd,
             pulseActive = pulseTarget == HomePulseTarget.Menxia,
+            workText = pulseText,
             workLightColor = MenxiaWorkLight,
           )
         }

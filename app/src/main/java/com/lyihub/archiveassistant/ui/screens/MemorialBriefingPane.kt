@@ -86,7 +86,7 @@ private const val MemorialWheelDepartmentLabelVisibleStart = 0.8f
 private const val MemorialWheelDepartmentLabelVisibleEnd = 0.965f
 private const val MemorialWheelCoverSeed = 20260627
 private const val MemorialWheelDuplicateGuard = 3
-private const val MemorialWheelAutoAdvanceMillis = 4000L
+private const val MemorialWheelAutoAdvanceMillis = 3500L
 private val MemorialInk = Color.Black
 
 private data class BriefingSample(
