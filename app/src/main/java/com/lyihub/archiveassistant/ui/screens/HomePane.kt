@@ -1048,6 +1048,7 @@ private fun FolderResultList(
       MinistryFoldCard(
         folder = folder,
         visual = folderVisual(index),
+        searchQuery = searchQuery,
         onTopicSelected = onTopicSelected,
         onRenameTopic = onRenameTopic,
         onDeleteTopic = onDeleteTopic,
@@ -1063,6 +1064,7 @@ private fun FolderResultList(
 private fun MinistryFoldCard(
   folder: DashboardFolder,
   visual: FolderVisual,
+  searchQuery: String,
   onTopicSelected: (String) -> Unit,
   onRenameTopic: (String) -> Unit,
   onDeleteTopic: (String) -> Unit,
@@ -1105,7 +1107,13 @@ private fun MinistryFoldCard(
         verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
       ) {
         Text(
-          text = folder.title,
+          text =
+            buildHighlightedText(
+              text = folder.title,
+              query = searchQuery,
+              highlightColor = Color.Black,
+              highlightBgColor = Color(0xFFF2D88A).copy(alpha = 0.86f),
+            ),
           style = titleStyle,
           color = Color.Black.copy(alpha = 0.88f),
           fontWeight = FontWeight.Normal,
@@ -1113,7 +1121,13 @@ private fun MinistryFoldCard(
           overflow = TextOverflow.Ellipsis,
         )
         Text(
-          text = visual.description,
+          text =
+            buildHighlightedText(
+              text = visual.description,
+              query = searchQuery,
+              highlightColor = Color.Black,
+              highlightBgColor = Color(0xFFF2D88A).copy(alpha = 0.72f),
+            ),
           style = summaryStyle.copy(fontFamily = ImperialDisplayFont),
           color = Color.Black.copy(alpha = 0.52f),
           fontWeight = FontWeight.Normal,
@@ -1386,8 +1400,12 @@ internal fun buildHighlightedText(
   highlightColor: Color,
   highlightBgColor: Color,
 ): androidx.compose.ui.text.AnnotatedString {
+  val normalizedQuery = query.trim()
+  if (normalizedQuery.isEmpty()) {
+    return buildAnnotatedString { append(text) }
+  }
   val lowerText = text.lowercase()
-  val lowerQuery = query.lowercase()
+  val lowerQuery = normalizedQuery.lowercase()
   return buildAnnotatedString {
     var start = 0
     while (start < text.length) {
@@ -1406,9 +1424,9 @@ internal fun buildHighlightedText(
           color = highlightColor,
         )
       ) {
-        append(text.substring(matchIndex, matchIndex + query.length))
+        append(text.substring(matchIndex, matchIndex + normalizedQuery.length))
       }
-      start = matchIndex + query.length
+      start = matchIndex + normalizedQuery.length
     }
   }
 }
