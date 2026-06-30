@@ -948,9 +948,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun drawCoverGestureHint(canvas: Canvas) {
     val controlsWidth = controlsViewportWidth()
-    val bottomGap = dp(12f)
-    val buttonHeight = dp(48f)
-    val bottomTop = foldBottom - buttonHeight - dp(18f)
+    val controlScale = controlsResponsiveScale()
+    val bottomGap = dp(12f) * controlScale
+    val buttonHeight = dp(48f) * controlScale
+    val bottomTop = foldBottom - buttonHeight - dp(18f) * controlScale
     buttonLayouter.layoutButtonRow(
       rects = listOf(coverActionLeftRect, coverActionRightRect, coverActionKeepRect),
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
@@ -962,7 +963,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val topTotalWidth = min(dp(430f), controlsWidth)
     val topLeft = foldLeft + ((foldRight - foldLeft) - topTotalWidth) / 2f
-    val top = foldTop + dp(18f)
+    val top = foldTop + dp(18f) * controlScale
     val topButtonWidth = min(buttonHeight * assets.buttonAspectRatio, topTotalWidth * 0.36f)
     val topButtonCenterInset = topButtonWidth / 2f
     buttonLayouter.layoutAspectButton(
@@ -1386,9 +1387,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun drawVerdictToolbar(canvas: Canvas) {
     val controlsWidth = controlsViewportWidth()
-    val toolbarHeight = dp(52f)
-    val toolbarTop = foldBottom - toolbarHeight - dp(18f)
-    val gap = dp(18f)
+    val controlScale = controlsResponsiveScale()
+    val toolbarHeight = dp(52f) * controlScale
+    val toolbarTop = foldBottom - toolbarHeight - dp(18f) * controlScale
+    val gap = dp(18f) * controlScale
     buttonLayouter.layoutButtonRow(
       rects = listOf(toolbarButtonRect1, toolbarButtonRect2),
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
@@ -1413,8 +1415,9 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun drawCollapseButton(canvas: Canvas) {
     val controlsWidth = controlsViewportWidth()
-    val buttonHeight = dp(42f)
-    val top = foldTop + dp(18f)
+    val controlScale = controlsResponsiveScale()
+    val buttonHeight = dp(42f) * controlScale
+    val top = foldTop + dp(18f) * controlScale
     buttonLayouter.layoutAspectButton(
       rect = collapseButtonRect,
       centerX = foldLeft + (foldRight - foldLeft) / 2f,
@@ -1469,6 +1472,10 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun controlsViewportWidth(): Float {
     return (foldRight - foldLeft).coerceAtLeast(1f)
+  }
+
+  private fun controlsResponsiveScale(): Float {
+    return (controlsViewportWidth() / dp(360f)).coerceIn(0.86f, 1f)
   }
 
   private fun drawStampOverlay(canvas: Canvas) {
@@ -1645,14 +1652,8 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val viewportWidth = (foldRight - foldLeft).coerceAtLeast(1f)
     val viewportHeight = (foldBottom - foldTop).coerceAtLeast(1f)
-    articleWidth =
-      if (viewportWidth >= dp(700f)) {
-          (viewportWidth / 2f).coerceAtMost(dp(600f))
-        } else {
-          viewportWidth.coerceAtMost(dp(600f))
-        }
-        .coerceAtLeast(dp(280f))
-    val articleHeight = min(dp(760f), viewportHeight * 0.78f).coerceAtLeast(dp(520f))
+    articleWidth = resolvedArticleWidthForViewport(viewportWidth)
+    val articleHeight = resolvedArticleHeightForViewport(viewportHeight)
     val articleTop = foldTop + (viewportHeight - articleHeight) / 2f
     val contentWidth = (articleWidth - dp(80f)).roundToInt().coerceAtLeast(1)
     var nextLeft = 0f
@@ -1677,9 +1678,17 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun paginateDossierBody(dossier: PendingMemorialDossier): List<String> {
     val pageWidth = resolvedArticleWidth(width)
     val pageHeight = resolvedArticleHeight(width, height)
-    val contentWidth = (pageWidth - dp(84f)).roundToInt().coerceAtLeast(1)
-    val firstBodyHeight = (pageHeight - dp(126f) - dp(54f)).coerceAtLeast(dp(96f))
-    val bodyHeight = (pageHeight - dp(64f) - dp(54f)).coerceAtLeast(dp(128f))
+    val scale = articleResponsiveScale(pageWidth)
+    val horizontalInset = responsiveDp(42f, pageWidth)
+    val contentWidth = (pageWidth - horizontalInset * 2f).roundToInt().coerceAtLeast(1)
+    val firstBodyHeight =
+      (pageHeight - responsiveDp(126f, pageWidth) - responsiveDp(54f, pageWidth)).coerceAtLeast(
+        dp(96f) * scale
+      )
+    val bodyHeight =
+      (pageHeight - responsiveDp(64f, pageWidth) - responsiveDp(54f, pageWidth)).coerceAtLeast(
+        dp(128f) * scale
+      )
     return paginator.paginate(
       body = dossier.body,
       contentWidth = contentWidth,
@@ -1690,17 +1699,29 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
   private fun resolvedArticleWidth(viewWidth: Int): Float {
     val viewportWidth = (viewWidth - dp(40f)).coerceAtLeast(1f)
-    return if (viewportWidth >= dp(700f)) {
-        (viewportWidth / 2f).coerceAtMost(dp(600f))
-      } else {
-        viewportWidth.coerceAtMost(dp(600f))
-      }
-      .coerceAtLeast(dp(280f))
+    return resolvedArticleWidthForViewport(viewportWidth)
   }
 
   private fun resolvedArticleHeight(viewWidth: Int, viewHeight: Int): Float {
     val viewportHeight = (viewHeight - dp(40f)).coerceAtLeast(1f)
-    return min(dp(760f), viewportHeight * 0.78f).coerceAtLeast(dp(520f))
+    return resolvedArticleHeightForViewport(viewportHeight)
+  }
+
+  private fun resolvedArticleWidthForViewport(viewportWidth: Float): Float {
+    val maxWidth =
+      if (viewportWidth >= dp(700f)) {
+        (viewportWidth / 2f).coerceAtMost(dp(600f))
+      } else {
+        viewportWidth.coerceAtMost(dp(600f))
+      }
+    val minWidth = min(dp(280f), viewportWidth)
+    return maxWidth.coerceAtLeast(minWidth).coerceAtMost(viewportWidth)
+  }
+
+  private fun resolvedArticleHeightForViewport(viewportHeight: Float): Float {
+    val maxHeight = min(dp(760f), viewportHeight * 0.78f)
+    val minHeight = min(dp(520f), viewportHeight * 0.72f)
+    return maxHeight.coerceAtLeast(minHeight).coerceAtMost(viewportHeight)
   }
 
   private fun calculateTransform(
@@ -2280,6 +2301,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
     page: MemorialPage,
     coverSequenceIndex: Int,
   ) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier =
       dossierFor(if (page.type == MemorialPageType.Cover) coverSequenceIndex else page.dossierIndex)
     val labelWidth = rect.width() * 0.42f
@@ -2311,29 +2333,34 @@ internal class MemorialFoldView(context: Context) : View(context) {
 
     val titlePaint =
       TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = sp(22f)
+        textSize = responsiveSp(22f, rect.width())
         color = paints.coverTitle.color
         typeface = assets.stampTypeface
         textAlign = Paint.Align.CENTER
       }
-    val titleLineGap = dp(5f)
-    val coverTitleLineGap = dp(24f)
+    val coverTitlePaint =
+      TextPaint(paints.coverTitle).apply {
+        textSize = paints.coverTitle.textSize * scale
+      }
+    val titleLineGap = responsiveDp(5f, rect.width())
+    val coverTitleLineGap = responsiveDp(24f, rect.width())
     val titleText =
       ellipsizeVerticalText(
         text = dossier.title,
         paint = titlePaint,
-        maxHeight = innerLabel.height() - dp(76f),
+        maxHeight = innerLabel.height() - responsiveDp(76f, rect.width()),
         lineGap = titleLineGap,
       )
     val titleColumnWidth = verticalTextWidth(titleText, titlePaint)
-    val coverColumnWidth = verticalTextWidth("奏章", paints.coverTitle)
-    val columnGap = dp(5f)
+    val coverColumnWidth = verticalTextWidth("奏章", coverTitlePaint)
+    val columnGap = responsiveDp(5f, rect.width())
     val groupWidth = titleColumnWidth + columnGap + coverColumnWidth
     val groupLeft = label.centerX() - groupWidth / 2f
-    val coverTitleHeight = verticalTextHeight("奏章", paints.coverTitle, coverTitleLineGap)
+    val coverTitleHeight = verticalTextHeight("奏章", coverTitlePaint, coverTitleLineGap)
     val titleHeight = verticalTextHeight(titleText, titlePaint, titleLineGap)
     val titleTop = innerLabel.centerY() - titleHeight / 2f
-    val coverTitleTop = innerLabel.centerY() - coverTitleHeight / 2f - dp(10f)
+    val coverTitleTop =
+      innerLabel.centerY() - coverTitleHeight / 2f - responsiveDp(10f, rect.width())
     drawVerticalText(
       canvas = canvas,
       text = titleText,
@@ -2348,7 +2375,7 @@ internal class MemorialFoldView(context: Context) : View(context) {
       text = "奏章",
       centerX = coverColumnX,
       top = coverTitleTop,
-      paint = paints.coverTitle,
+      paint = coverTitlePaint,
       lineGap = coverTitleLineGap,
     )
   }
@@ -2547,14 +2574,16 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawDirectoryContent(canvas: Canvas, rect: RectF, page: MemorialPage) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier = dossierFor(page.dossierIndex)
     val directoryTitlePaint =
       TextPaint(paints.title).apply {
         typeface = assets.stampTypeface
+        textSize = paints.title.textSize * scale
       }
-    var y = rect.top + dp(48f)
+    var y = rect.top + responsiveDp(48f, rect.width())
     drawCenteredText(canvas, "本折提要", rect.centerX(), y, directoryTitlePaint)
-    y += dp(28f)
+    y += responsiveDp(28f, rect.width())
     drawCenteredText(
       canvas,
       if (readerMode == MemorialReaderMode.ArticleReader) {
@@ -2566,39 +2595,44 @@ internal class MemorialFoldView(context: Context) : View(context) {
       y,
       paints.meta,
     )
-    y += dp(36f)
+    y += responsiveDp(36f, rect.width())
 
-    val itemLeft = rect.left + dp(44f)
-    val itemWidth = rect.width() - dp(88f)
+    val horizontalInset = responsiveDp(44f, rect.width())
+    val itemLeft = rect.left + horizontalInset
+    val itemWidth = rect.width() - horizontalInset * 2f
     drawTextBlock(canvas, dossier.title, paints.itemTitle, itemLeft, y, itemWidth, 1.28f, false)
-    y += dp(38f)
+    y += responsiveDp(38f, rect.width())
     drawTextBlock(canvas, dossier.source, paints.itemMeta, itemLeft, y, itemWidth, 1.32f, false)
-    y += dp(24f)
+    y += responsiveDp(24f, rect.width())
     y = drawDirectoryTags(canvas, dossier.tags.ifEmpty { listOf("待批") }, itemLeft, y, itemWidth)
-    y += dp(18f)
+    y += responsiveDp(18f, rect.width())
 
     val image = assets.articleImageFor(dossier.imageResName)
     if (image != null) {
-      val availableForImage = rect.bottom - y - dp(160f)
-      if (availableForImage >= dp(92f)) {
+      val availableForImage = rect.bottom - y - responsiveDp(160f, rect.width())
+      if (availableForImage >= responsiveDp(92f, rect.width())) {
         val maxImageHeight = min(itemWidth, availableForImage)
         val imageHeight =
           min(itemWidth / (image.width.toFloat() / image.height.toFloat()), maxImageHeight)
         val imageRect = RectF(itemLeft, y, itemLeft + itemWidth, y + imageHeight)
         drawArticlePreviewImage(canvas, image, imageRect)
-        y = imageRect.bottom + dp(22f)
+        y = imageRect.bottom + responsiveDp(22f, rect.width())
       }
     }
 
     canvas.drawLine(itemLeft, y, itemLeft + itemWidth, y, paints.dashed)
-    y += dp(22f)
+    y += responsiveDp(22f, rect.width())
     val summaryLayout =
       buildEllipsizedTextLayout(
         dossier.summary,
         paints.author,
         itemWidth.roundToInt().coerceAtLeast(1),
         1.62f,
-        max(2, ((rect.bottom - y - dp(62f)) / (paints.author.textSize * 1.62f)).roundToInt()),
+        max(
+          2,
+          ((rect.bottom - y - responsiveDp(62f, rect.width())) / (paints.author.textSize * 1.62f))
+            .roundToInt(),
+        ),
       )
     drawStaticLayout(
       canvas = canvas,
@@ -2610,21 +2644,24 @@ internal class MemorialFoldView(context: Context) : View(context) {
   }
 
   private fun drawBodyContent(canvas: Canvas, rect: RectF, page: MemorialPage) {
+    val scale = articleResponsiveScale(rect.width())
     val dossier = dossierFor(page.dossierIndex)
     val segments =
       bodySegmentsByDossierIndex[page.dossierIndex]
         ?: pages.mapNotNull { if (it.dossierIndex == page.dossierIndex) it.bodyText else null }
     val segment =
       page.bodyText ?: segments.getOrElse(page.bodySegmentIndex) { segments.lastOrNull().orEmpty() }
-    var y = rect.top + dp(54f)
+    var y = rect.top + responsiveDp(54f, rect.width())
     if (page.bodySegmentIndex == 0) {
       val bodyTitlePaint =
         TextPaint(paints.title).apply {
           typeface = assets.songTypeface
+          textSize = paints.title.textSize * scale
           letterSpacing = 0.02f
           textAlign = Paint.Align.LEFT
         }
-      val titleWidth = (rect.width() - dp(108f)).roundToInt().coerceAtLeast(1)
+      val titleInset = responsiveDp(54f, rect.width())
+      val titleWidth = (rect.width() - titleInset * 2f).roundToInt().coerceAtLeast(1)
       val titleLayout =
         buildEllipsizedTextLayout(
           dossier.title,
@@ -2640,16 +2677,17 @@ internal class MemorialFoldView(context: Context) : View(context) {
         left = rect.left + (rect.width() - titleLayout.width) / 2f,
         top = y,
       )
-      y += titleLayout.height + dp(18f)
+      y += titleLayout.height + responsiveDp(18f, rect.width())
       drawCenteredText(canvas, dossier.source, rect.centerX(), y, paints.meta)
-      y += dp(42f)
+      y += responsiveDp(42f, rect.width())
     } else {
-      y = rect.top + dp(64f)
+      y = rect.top + responsiveDp(64f, rect.width())
     }
-    val left = rect.left + dp(42f)
-    val width = rect.width() - dp(84f)
+    val horizontalInset = responsiveDp(42f, rect.width())
+    val left = rect.left + horizontalInset
+    val width = rect.width() - horizontalInset * 2f
     canvas.save()
-    canvas.clipRect(left, y, left + width, rect.bottom - dp(54f))
+    canvas.clipRect(left, y, left + width, rect.bottom - responsiveDp(54f, rect.width()))
     drawTextBlock(
       canvas,
       segment,
@@ -2901,6 +2939,18 @@ internal class MemorialFoldView(context: Context) : View(context) {
   private fun dp(value: Float): Float = value * displayDensity
 
   private fun sp(value: Float): Float = value * scaledDensity
+
+  private fun articleResponsiveScale(articleWidth: Float = this.articleWidth): Float {
+    return (articleWidth / dp(360f)).coerceIn(0.82f, 1f)
+  }
+
+  private fun responsiveDp(value: Float, articleWidth: Float = this.articleWidth): Float {
+    return dp(value) * articleResponsiveScale(articleWidth)
+  }
+
+  private fun responsiveSp(value: Float, articleWidth: Float = this.articleWidth): Float {
+    return sp(value) * articleResponsiveScale(articleWidth)
+  }
 
   private fun startOpenAnimationIfReady() {
     if (hasPlayedOpenAnimation || width <= 0 || height <= 0 || articles.isEmpty()) return

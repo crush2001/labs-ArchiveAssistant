@@ -3,44 +3,45 @@ package com.lyihub.archiveassistant.domain
 /**
  * The six canonical ministries (六部) that serve as the immutable topic taxonomy.
  *
- * Each ministry has a stable ID, a fixed display order, and a CJK label
- * pairing the Chinese ministry name with its archival function.
+ * Each ministry has a stable ID, a fixed display order, and a CJK label pairing the Chinese
+ * ministry name with its archival function.
  *
- * Use [SixMinistry.entries] for the canonical ordered list, [SixMinistry.byId]
- * for lookup, and [SixMinistry.toTopic] to produce a [Topic] for UI compatibility.
+ * Use [SixMinistry.entries] for the canonical ordered list, [SixMinistry.byId] for lookup, and
+ * [SixMinistry.toTopic] to produce a [Topic] for UI compatibility.
  */
 enum class SixMinistry(
-    val id: String,
-    val order: Int,
-    val label: String,
+  val id: String,
+  val order: Int,
+  val label: String,
 ) {
-    OFFICIALS("officials", 0, "吏 · 名籍"),
-    TREASURY("treasury", 1, "户 · 府库"),
-    RITES("rites", 2, "礼 · 典章"),
-    MILITARY("military", 3, "兵 · 行令"),
-    JUSTICE("justice", 4, "刑 · 稽核"),
-    WORKS("works", 5, "工 · 营造"),
-    ;
+  OFFICIALS("officials", 0, "吏 · 名籍"),
+  TREASURY("treasury", 1, "户 · 府库"),
+  RITES("rites", 2, "礼 · 典章"),
+  MILITARY("military", 3, "兵 · 行令"),
+  JUSTICE("justice", 4, "刑 · 稽核"),
+  WORKS("works", 5, "工 · 营造");
 
-    companion object {
-        /** Look up a [SixMinistry] by its [id]; returns `null` for unknown IDs. */
-        fun byId(id: String): SixMinistry? = entries.firstOrNull { it.id == id }
-    }
+  companion object {
+    /** Look up a [SixMinistry] by its [id]; returns `null` for unknown IDs. */
+    fun byId(id: String): SixMinistry? = entries.firstOrNull { it.id == id }
+  }
 }
 
 /** Convert a [SixMinistry] to a [Topic] for UI/legacy compatibility. */
-fun SixMinistry.toTopic(): Topic = Topic(
+fun SixMinistry.toTopic(): Topic =
+  Topic(
     id = id,
     title = label,
     iconName = "folder-spark",
     iconColor = "#5e5d59",
     updatedAtEpochMillis = 1_715_000_000_000,
-)
+  )
 
 /** All six canonical ministry topics. */
 val sixMinistryTopics: List<Topic> = SixMinistry.entries.map { it.toTopic() }
 
-fun resolveTopicId(topicId: String?): String = SixMinistry.byId(topicId.orEmpty())?.id ?: SixMinistry.TREASURY.id
+fun resolveTopicId(topicId: String?): String =
+  SixMinistry.byId(topicId.orEmpty())?.id ?: SixMinistry.TREASURY.id
 
 data class Topic(
   val id: String,

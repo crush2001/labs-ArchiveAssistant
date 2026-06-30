@@ -935,7 +935,7 @@ private fun MinistryStampStack(
                   fontSize = MaterialTheme.typography.headlineMedium.fontSize,
                 )
               ) {
-                append("「尚书省」")
+                append("尚书省")
               }
               withStyle(
                 SpanStyle(
