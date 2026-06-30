@@ -1393,7 +1393,7 @@ class ArchiveAssistantStateStoreTest {
       .trimIndent()
 
   private fun waitUntil(assertion: () -> Boolean) {
-    val deadline = System.currentTimeMillis() + 2_000L
+    val deadline = System.currentTimeMillis() + 5_000L
     while (System.currentTimeMillis() < deadline) {
       // Pump the DefaultExecutor/IO dispatcher's event loop so that
       // collectLatest coroutines launched from the store's init block

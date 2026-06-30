@@ -21,8 +21,9 @@ internal data class ArchiveTileVisual(
   val borderColor: Color,
 )
 
-internal val ArchiveCutCornerShape: Shape = FixedCutCornerShape(8)
-internal val ArchiveFlatCutShape: Shape = FlatCutCornerShape(8)
+internal const val ArchiveCutCornerNotchDp = 8
+internal val ArchiveCutCornerShape: Shape = FixedCutCornerShape(ArchiveCutCornerNotchDp)
+internal val ArchiveFlatCutShape: Shape = FlatCutCornerShape(ArchiveCutCornerNotchDp)
 
 private class FixedCutCornerShape(private val notchDp: Int) : Shape {
   override fun createOutline(

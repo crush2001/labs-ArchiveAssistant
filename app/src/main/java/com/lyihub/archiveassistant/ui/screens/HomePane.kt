@@ -89,8 +89,8 @@ private val MenxiaWorkLight = ZhongshuWorkLight
 private const val HomePulseCycleMillis = 1800
 private const val HomePulseCyclesPerTarget = 1
 private const val HomePulseShineMillis = 700
-private const val HomeWorkTextMinMillis = 720L
-private const val HomeWorkTextMaxMillis = 1160L
+private const val HomeWorkTextMinMillis = 420L
+private const val HomeWorkTextMaxMillis = 1860L
 
 private enum class HomePulseTarget {
   Zhongshu,
@@ -608,14 +608,16 @@ private fun TilePulseWave(
   LaunchedEffect(active) {
     if (active) {
       progress.snapTo(0f)
-      progress.animateTo(
-        targetValue = HomePulseCyclesPerTarget.toFloat(),
-        animationSpec =
-          tween(
-            durationMillis = HomePulseCycleMillis * HomePulseCyclesPerTarget,
-            easing = LinearEasing,
-          ),
-      )
+      while (active) {
+        progress.animateTo(
+          targetValue = progress.value + HomePulseCyclesPerTarget.toFloat(),
+          animationSpec =
+            tween(
+              durationMillis = HomePulseCycleMillis * HomePulseCyclesPerTarget,
+              easing = LinearEasing,
+            ),
+        )
+      }
     } else {
       progress.snapTo(0f)
     }
@@ -625,19 +627,14 @@ private fun TilePulseWave(
     modifier =
       modifier.drawBehind {
         val baseStroke = (size.minDimension * 0.052f).coerceIn(4.4f, 8.0f)
+        val baseNotch = ArchiveCutCornerNotchDp.dp.toPx().coerceAtMost(size.minDimension * 0.28f)
         val cycleProgress = progress.value % 1f
-        listOf(0f, 0.38f).forEachIndexed { index, delay ->
-          val phase = (cycleProgress - delay).takeIf { it >= 0f } ?: (cycleProgress + 1f - delay)
-          if (index == 1 && cycleProgress < delay) return@forEachIndexed
+        listOf(0f, 0.48f).forEachIndexed { index, delay ->
+          val phase = (cycleProgress - delay + 1f) % 1f
           val inset = size.minDimension * 0.28f * phase
-          val expandedSize =
-            Size(
-              width = size.width + inset * 2f,
-              height = size.height + inset * 2f,
-            )
-          val alpha = (1f - phase).coerceIn(0f, 1f) * if (index == 0) 0.62f else 0.48f
+          val alpha = (1f - phase).coerceIn(0f, 1f) * if (index == 0) 0.62f else 0.5f
           drawPath(
-            path = cutoutPulsePath(expandedSize, inset),
+            path = cutoutPulsePath(size, inset, baseNotch),
             color = color.copy(alpha = alpha),
             style = Stroke(width = baseStroke * (1f - phase * 0.22f)),
           )
@@ -649,23 +646,28 @@ private fun TilePulseWave(
 private fun cutoutPulsePath(
   size: Size,
   outset: Float,
+  baseNotch: Float,
 ): Path {
-  val notch = (8f + outset * 0.28f).coerceAtMost(size.minDimension * 0.24f)
+  val left = -outset
+  val top = -outset
+  val right = size.width + outset
+  val bottom = size.height + outset
+  val notch = (baseNotch + outset * 0.32f).coerceAtMost(size.minDimension * 0.3f)
   return Path().apply {
-    moveTo(notch - outset, -outset)
-    lineTo(size.width - notch - outset, -outset)
-    quadraticTo(size.width - notch - outset, notch - outset, size.width - outset, notch - outset)
-    lineTo(size.width - outset, size.height - notch - outset)
+    moveTo(left + notch, top)
+    lineTo(right - notch, top)
+    quadraticTo(right - notch, top + notch, right, top + notch)
+    lineTo(right, bottom - notch)
     quadraticTo(
-      size.width - notch - outset,
-      size.height - notch - outset,
-      size.width - notch - outset,
-      size.height - outset,
+      right - notch,
+      bottom - notch,
+      right - notch,
+      bottom,
     )
-    lineTo(notch - outset, size.height - outset)
-    quadraticTo(notch - outset, size.height - notch - outset, -outset, size.height - notch - outset)
-    lineTo(-outset, notch - outset)
-    quadraticTo(notch - outset, notch - outset, notch - outset, -outset)
+    lineTo(left + notch, bottom)
+    quadraticTo(left + notch, bottom - notch, left, bottom - notch)
+    lineTo(left, top + notch)
+    quadraticTo(left + notch, top + notch, left + notch, top)
     close()
   }
 }
