@@ -1,0 +1,252 @@
+diff --git a/app/src/main/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifier.kt b/app/src/main/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifier.kt
+index d2d160b..13ab604 100644
+--- a/app/src/main/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifier.kt
++++ b/app/src/main/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifier.kt
+@@ -50,21 +50,15 @@ class MockKnowledgeClassifier(
+ 
+     private fun selectTopic(input: String, topics: List<Topic>): Topic {
+         val lowerInput = input.lowercase()
+-        val preferredTitle = when {
+-            listOf("ui", "ux", "design", "interface", "界面", "交互", "设计").any { it in lowerInput } -> "UX/UI 灵感板"
+-            listOf("anthropology", "fieldwork", "人类学", "田野", "仪式").any { it in lowerInput } -> "阅读剪报：人类学"
+-            listOf("travel", "trip", "旅行", "目的地").any { it in lowerInput } -> "冷门旅行地参考"
+-            else -> "大模型架构研究"
++        val preferredLabel = when {
++            listOf("ui", "ux", "design", "interface", "界面", "交互", "设计").any { it in lowerInput } -> SixMinistry.WORKS.label
++            listOf("anthropology", "fieldwork", "人类学", "田野", "仪式").any { it in lowerInput } -> SixMinistry.RITES.label
++            listOf("travel", "trip", "旅行", "目的地").any { it in lowerInput } -> SixMinistry.TREASURY.label
++            else -> SixMinistry.OFFICIALS.label
+         }
+-        return topics.firstOrNull { it.title == preferredTitle }
++        return topics.firstOrNull { it.title == preferredLabel }
+             ?: topics.firstOrNull()
+-            ?: Topic(
+-                id = SampleKnowledgeData.DefaultTopicId,
+-                title = "大模型架构研究",
+-                iconName = "folder-spark",
+-                iconColor = "#b85c38",
+-                updatedAtEpochMillis = 1_715_000_000_000,
+-            )
++            ?: SixMinistry.OFFICIALS.toTopic()
+     }
+ 
+     private fun titleFor(input: String): String = input
+diff --git a/app/src/main/java/com/lyihub/archiveassistant/domain/Models.kt b/app/src/main/java/com/lyihub/archiveassistant/domain/Models.kt
+index 7c35963..5b7a977 100644
+--- a/app/src/main/java/com/lyihub/archiveassistant/domain/Models.kt
++++ b/app/src/main/java/com/lyihub/archiveassistant/domain/Models.kt
+@@ -1,5 +1,45 @@
+ package com.lyihub.archiveassistant.domain
+ 
++/**
++ * The six canonical ministries (六部) that serve as the immutable topic taxonomy.
++ *
++ * Each ministry has a stable ID, a fixed display order, and a CJK label
++ * pairing the Chinese ministry name with its archival function.
++ *
++ * Use [SixMinistry.entries] for the canonical ordered list, [SixMinistry.byId]
++ * for lookup, and [SixMinistry.toTopic] to produce a [Topic] for UI compatibility.
++ */
++enum class SixMinistry(
++    val id: String,
++    val order: Int,
++    val label: String,
++) {
++    OFFICIALS("officials", 0, "吏 · 名籍"),
++    TREASURY("treasury", 1, "户 · 府库"),
++    RITES("rites", 2, "礼 · 典章"),
++    MILITARY("military", 3, "兵 · 行令"),
++    JUSTICE("justice", 4, "刑 · 稽核"),
++    WORKS("works", 5, "工 · 营造"),
++    ;
++
++    companion object {
++        /** Look up a [SixMinistry] by its [id]; returns `null` for unknown IDs. */
++        fun byId(id: String): SixMinistry? = entries.firstOrNull { it.id == id }
++    }
++}
++
++/** Convert a [SixMinistry] to a [Topic] for UI/legacy compatibility. */
++fun SixMinistry.toTopic(): Topic = Topic(
++    id = id,
++    title = label,
++    iconName = "folder-spark",
++    iconColor = "#5e5d59",
++    updatedAtEpochMillis = 1_715_000_000_000,
++)
++
++/** All six canonical ministry topics. */
++val sixMinistryTopics: List<Topic> = SixMinistry.entries.map { it.toTopic() }
++
+ data class Topic(
+     val id: String,
+     val title: String,
+diff --git a/app/src/main/java/com/lyihub/archiveassistant/domain/SampleKnowledgeData.kt b/app/src/main/java/com/lyihub/archiveassistant/domain/SampleKnowledgeData.kt
+index 6fdb89a..7c9be83 100644
+--- a/app/src/main/java/com/lyihub/archiveassistant/domain/SampleKnowledgeData.kt
++++ b/app/src/main/java/com/lyihub/archiveassistant/domain/SampleKnowledgeData.kt
+@@ -1,58 +1,13 @@
+ package com.lyihub.archiveassistant.domain
+ 
+ object SampleKnowledgeData {
+-    const val DefaultTopicId = "topic-ai-architecture"
++    /** Default fallback ministry ID; corresponds to [SixMinistry.TREASURY]. */
++    const val DefaultTopicId = "treasury"
+ 
+-    val topics: List<Topic> = listOf(
+-        Topic(
+-            id = DefaultTopicId,
+-            title = "大模型架构研究",
+-            iconName = "folder-spark",
+-            iconColor = "#b85c38",
+-            updatedAtEpochMillis = 1_715_000_000_000,
+-        ),
+-        Topic(
+-            id = "topic-ui-inspiration",
+-            title = "UX/UI 灵感板",
+-            iconName = "folder-spark",
+-            iconColor = "#3898ec",
+-            updatedAtEpochMillis = 1_714_000_000_000,
+-        ),
+-        Topic(
+-            id = "topic-anthropology-clips",
+-            title = "阅读剪报：人类学",
+-            iconName = "folder-bookmark",
+-            iconColor = "#5e5d59",
+-            updatedAtEpochMillis = 1_713_000_000_000,
+-        ),
+-        Topic(
+-            id = "topic-hidden-travel",
+-            title = "冷门旅行地参考",
+-            iconName = "folder-spark",
+-            iconColor = "#3f3a34",
+-            updatedAtEpochMillis = 1_712_000_000_000,
+-        ),
+-        Topic(
+-            id = "topic-open-source-tools",
+-            title = "开源工具收藏",
+-            iconName = "folder-bookmark",
+-            iconColor = "#2d8a6e",
+-            updatedAtEpochMillis = 1_711_000_000_000,
+-        ),
+-    )
++    /** The six canonical ministry topics derived from [SixMinistry]. */
++    val topics: List<Topic> = sixMinistryTopics
+ 
+     val items: List<KnowledgeItem> = listOf(
+-        KnowledgeItem(
+-            id = "item-attention-pdf",
+-            topicId = DefaultTopicId,
+-            contentType = ContentType.DOCUMENT,
+-            documentFormat = DocumentFormat.PDF,
+-            title = "Attention 机制",
+-            summary = "Transformer 抛弃 RNN 结构后的核心注意力机制摘要。",
+-            fullText = "Attention 机制说明：Transformer 通过自注意力捕捉长距离依赖。",
+-            sourceUrl = null,
+-            createdAtEpochMillis = 1_715_086_400_000,
+-        ),
+         KnowledgeItem(
+             id = "item-transformer-article",
+             topicId = DefaultTopicId,
+@@ -63,9 +18,20 @@ object SampleKnowledgeData {
+             sourceUrl = "https://example.com/transformer-scaling",
+             createdAtEpochMillis = 1_715_000_000_000,
+         ),
++        KnowledgeItem(
++            id = "item-attention-pdf",
++            topicId = SixMinistry.OFFICIALS.id,
++            contentType = ContentType.DOCUMENT,
++            documentFormat = DocumentFormat.PDF,
++            title = "Attention 机制",
++            summary = "Transformer 抛弃 RNN 结构后的核心注意力机制摘要。",
++            fullText = "Attention 机制说明：Transformer 通过自注意力捕捉长距离依赖。",
++            sourceUrl = null,
++            createdAtEpochMillis = 1_715_086_400_000,
++        ),
+         KnowledgeItem(
+             id = "item-transformer-diagram",
+-            topicId = DefaultTopicId,
++            topicId = SixMinistry.WORKS.id,
+             contentType = ContentType.IMAGE_SCREENSHOT,
+             title = "Transformer 架构全景图",
+             summary = "原始 Transformer 编码器-解码器结构的总览截屏。",
+@@ -75,7 +41,7 @@ object SampleKnowledgeData {
+         ),
+         KnowledgeItem(
+             id = "item-ui-screenshot",
+-            topicId = "topic-ui-inspiration",
++            topicId = SixMinistry.WORKS.id,
+             contentType = ContentType.IMAGE_SCREENSHOT,
+             title = "设置页信息层级截图",
+             summary = "用于后续卡片弹窗和详情筛选的界面参考。",
+@@ -85,7 +51,7 @@ object SampleKnowledgeData {
+         ),
+         KnowledgeItem(
+             id = "item-anthropology-note",
+-            topicId = "topic-anthropology-clips",
++            topicId = SixMinistry.RITES.id,
+             contentType = ContentType.DOCUMENT,
+             documentFormat = DocumentFormat.PDF,
+             title = "田野笔记片段",
+diff --git a/app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt b/app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt
+index 40df7ca..0278ab2 100644
+--- a/app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt
++++ b/app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt
+@@ -13,7 +13,7 @@ class MockKnowledgeClassifierTest {
+ 
+         val payload = result.assertClassified()
+         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
+-        assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
++        assertEquals("officials", payload.topicId)
+     }
+ 
+     @Test
+@@ -22,7 +22,7 @@ class MockKnowledgeClassifierTest {
+ 
+         val payload = result.assertClassified()
+         assertEquals(ContentType.IMAGE_SCREENSHOT, payload.contentType)
+-        assertEquals("topic-ui-inspiration", payload.topicId)
++        assertEquals("works", payload.topicId)
+     }
+ 
+     @Test
+@@ -32,7 +32,7 @@ class MockKnowledgeClassifierTest {
+         val payload = result.assertClassified()
+         assertEquals(ContentType.DOCUMENT, payload.contentType)
+         assertEquals(DocumentFormat.PDF, payload.documentFormat)
+-        assertEquals(SampleKnowledgeData.DefaultTopicId, payload.topicId)
++        assertEquals("officials", payload.topicId)
+     }
+ 
+     @Test
+@@ -77,7 +77,7 @@ class MockKnowledgeClassifierTest {
+ 
+         val payload = result.assertClassified()
+         assertEquals(ContentType.WEB_ARTICLE, payload.contentType)
+-        assertEquals("topic-anthropology-clips", payload.topicId)
++        assertEquals("rites", payload.topicId)
+     }
+ 
+     @Test
+@@ -89,15 +89,19 @@ class MockKnowledgeClassifierTest {
+     }
+ 
+     @Test
+-    fun sampleData_containsPrototypeLabelsAndDeterministicFixtures() {
++    fun sampleData_containsSixMinistryTopicsAndDeterministicFixtures() {
+         assertEquals(
+             listOf("全部", "网页", "图像", "文档"),
+             ContentType.entries.map { it.label },
+         )
+         assertEquals(
+-            listOf("大模型架构研究", "UX/UI 灵感板", "阅读剪报：人类学", "冷门旅行地参考", "开源工具收藏"),
++            listOf("吏 · 名籍", "户 · 府库", "礼 · 典章", "兵 · 行令", "刑 · 稽核", "工 · 营造"),
+             SampleKnowledgeData.topics.map { it.title },
+         )
++        assertEquals(
++            listOf("officials", "treasury", "rites", "military", "justice", "works"),
++            SampleKnowledgeData.topics.map { it.id },
++        )
+         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.WEB_ARTICLE })
+         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.IMAGE_SCREENSHOT })
+         assertTrue(SampleKnowledgeData.items.any { it.contentType == ContentType.DOCUMENT })

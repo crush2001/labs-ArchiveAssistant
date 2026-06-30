@@ -40,7 +40,6 @@ import com.lyihub.archiveassistant.state.ArchiveAssistantStateStore
 import com.lyihub.archiveassistant.ui.layout.LayoutMode
 import com.lyihub.archiveassistant.ui.layout.rememberWindowLayoutInfo
 import com.lyihub.archiveassistant.ui.screens.AddItemDialog
-import com.lyihub.archiveassistant.ui.screens.ArticleMemorialReaderOverlay
 import com.lyihub.archiveassistant.ui.screens.ClipboardDialog
 import com.lyihub.archiveassistant.ui.screens.DeleteItemConfirmDialog
 import com.lyihub.archiveassistant.ui.screens.DetailPane
@@ -163,10 +162,10 @@ fun ArchiveAssistantApp(
       )
     }
 
-    state.readingItem?.let { item ->
-      ArticleMemorialReaderOverlay(
-        item = item,
-        onDismiss = effectiveStateStore::closeArticleReader,
+    state.modalItem?.let { item ->
+      MemorialDemoOverlay(
+        items = listOf(item),
+        onDismiss = effectiveStateStore::closeCardModal,
       )
     }
 
@@ -579,6 +578,7 @@ private val AsciiLetterRegex = Regex("[A-Za-z]")
 private fun ArchiveHomeContent(
   stateStore: ArchiveAssistantStateStore,
   state: ArchiveAssistantState,
+  onOpenMemorialDemo: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   HomePane(
@@ -595,7 +595,7 @@ private fun ArchiveHomeContent(
     onDeleteTopic = stateStore::openDeleteConfirmDialog,
     onSearchQueryChanged = stateStore::updateHomeSearchQuery,
     onOpenClipboard = stateStore::openLatestClipboardDialog,
-    onOpenMemorialDemo = stateStore::openMemorialWheel,
+    onOpenMemorialDemo = onOpenMemorialDemo,
     modifier = modifier,
   )
 }
@@ -631,10 +631,10 @@ private fun SelectedTopicDetailContent(
   if (topic != null) {
     DetailPane(
       topic = topic,
-      items = state.visibleSelectedTopicItems,
+      items = state.filteredSelectedTopicItems,
       searchQuery = state.homeSearchQuery,
       onBack = onBack,
-      onItemClick = stateStore::openArticleReader,
+      onItemClick = stateStore::openCardModal,
       showBackButton = showBackButton,
     )
   } else {
@@ -658,6 +658,15 @@ private fun SinglePaneLayout(
       ArchiveHomeContent(
         stateStore = stateStore,
         state = state,
+        onOpenMemorialDemo = onOpenMemorialDemo,
+      )
+
+    AppPane.MANAGE,
+    AppPane.CLASSIFICATION_REVIEW ->
+      ArchiveHomeContent(
+        stateStore = stateStore,
+        state = state,
+        onOpenMemorialDemo = onOpenMemorialDemo,
       )
 
     AppPane.MEMORIAL ->
@@ -678,6 +687,7 @@ private fun SinglePaneLayout(
         ArchiveHomeContent(
           stateStore = stateStore,
           state = state,
+          onOpenMemorialDemo = onOpenMemorialDemo,
         )
       }
 
@@ -704,12 +714,27 @@ private fun SinglePaneLayout(
       SelectedTopicDetailContent(
         stateStore = stateStore,
         state = state,
-        onBack = stateStore::closeArticleReader,
+        onBack = stateStore::closeCardModal,
         showBackButton = true,
       ) {
         ArchiveHomeContent(
           stateStore = stateStore,
           state = state,
+          onOpenMemorialDemo = onOpenMemorialDemo,
+        )
+      }
+
+    AppPane.CARD_DETAIL ->
+      SelectedTopicDetailContent(
+        stateStore = stateStore,
+        state = state,
+        onBack = stateStore::closeCardModal,
+        showBackButton = true,
+      ) {
+        ArchiveHomeContent(
+          stateStore = stateStore,
+          state = state,
+          onOpenMemorialDemo = onOpenMemorialDemo,
         )
       }
   }
@@ -730,12 +755,20 @@ private fun WideWorkspaceLayout(
       ArchiveHomeContent(
         stateStore = stateStore,
         state = state,
+        onOpenMemorialDemo = onOpenMemorialDemo,
         modifier = Modifier.weight(1f),
       )
 
       Box(modifier = Modifier.weight(1f)) {
         when (state.selectedPane) {
           AppPane.TOPICS ->
+            ArchiveMemorialContent(
+              state = state,
+              onOpenMemorialDemo = onOpenMemorialDemo,
+            )
+
+          AppPane.MANAGE,
+          AppPane.CLASSIFICATION_REVIEW ->
             ArchiveMemorialContent(
               state = state,
               onOpenMemorialDemo = onOpenMemorialDemo,
@@ -750,7 +783,8 @@ private fun WideWorkspaceLayout(
             )
 
           AppPane.DETAIL,
-          AppPane.ARTICLE_READER ->
+          AppPane.ARTICLE_READER,
+          AppPane.CARD_DETAIL ->
             SelectedTopicDetailContent(
               stateStore = stateStore,
               state = state,

@@ -1,0 +1,628 @@
+## git diff --stat
+ .../archiveassistant/ui/screens/HomePaneTest.kt    |  43 +--
+ .../archiveassistant/ui/screens/ManagePaneTest.kt  | 286 +----------------
+ .../archiveassistant/app/ArchiveAssistantApp.kt    |  35 +-
+ .../archiveassistant/data/AppDataPreferences.kt    |  96 ++++--
+ .../archiveassistant/data/AppDataRepository.kt     |  13 +
+ .../data/RemoteApiSmartSummarizer.kt               |  13 +-
+ .../archiveassistant/domain/LocalLlmClassifier.kt  |  16 +-
+ .../domain/LocalLlmSmartSummarizer.kt              |  11 +-
+ .../domain/MockKnowledgeClassifier.kt              |  22 +-
+ .../com/lyihub/archiveassistant/domain/Models.kt   |  42 +++
+ .../archiveassistant/domain/SampleKnowledgeData.kt |  70 ++--
+ .../state/ArchiveAssistantState.kt                 |  11 +-
+ .../state/ArchiveAssistantStateStore.kt            | 142 ++++----
+ .../lyihub/archiveassistant/ui/screens/HomePane.kt |   8 -
+ .../archiveassistant/ui/screens/ManagePane.kt      | 177 ----------
+ .../data/RemoteApiSmartSummarizerTest.kt           |  37 ++-
+ .../domain/LocalLlmClassifierTest.kt               |  64 ++--
+ .../domain/LocalLlmSmartSummarizerTest.kt          |  67 ++--
+ .../domain/MockKnowledgeClassifierTest.kt          |  48 ++-
+ .../state/ArchiveAssistantStateStoreTest.kt        | 357 ++++++++++++++++-----
+ 20 files changed, 686 insertions(+), 872 deletions(-)
+
+## git diff -- ui/theme ui/screens
+diff --git a/app/src/main/java/com/lyihub/archiveassistant/ui/screens/HomePane.kt b/app/src/main/java/com/lyihub/archiveassistant/ui/screens/HomePane.kt
+index 91a1aad..e33b6ce 100644
+--- a/app/src/main/java/com/lyihub/archiveassistant/ui/screens/HomePane.kt
++++ b/app/src/main/java/com/lyihub/archiveassistant/ui/screens/HomePane.kt
+@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.List
+-import androidx.compose.material.icons.filled.Add
+ import androidx.compose.material.icons.filled.Search
+ import androidx.compose.material.icons.filled.Settings
+ import androidx.compose.material3.Icon
+@@ -53,7 +52,6 @@ fun HomePane(
+     onTopicSelected: (String) -> Unit,
+     onOpenSettings: () -> Unit,
+     onOpenManage: () -> Unit,
+-    onCreateTopic: () -> Unit,
+     onSearchQueryChanged: (String) -> Unit,
+     onOpenClipboard: () -> Unit,
+     isSmartSummarizing: Boolean = false,
+@@ -141,12 +139,6 @@ fun HomePane(
+                             color = MaterialTheme.colorScheme.onSurface,
+                         )
+                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+-                            TextActionButton(
+-                                label = "新建",
+-                                onClick = onCreateTopic,
+-                                testTag = "home-create-topic-button",
+-                                icon = Icons.Default.Add,
+-                            )
+                             TextActionButton(
+                                 label = "管理",
+                                 onClick = onOpenManage,
+diff --git a/app/src/main/java/com/lyihub/archiveassistant/ui/screens/ManagePane.kt b/app/src/main/java/com/lyihub/archiveassistant/ui/screens/ManagePane.kt
+index bf12595..c382849 100644
+--- a/app/src/main/java/com/lyihub/archiveassistant/ui/screens/ManagePane.kt
++++ b/app/src/main/java/com/lyihub/archiveassistant/ui/screens/ManagePane.kt
+@@ -11,28 +11,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.size
+-import androidx.compose.foundation.layout.width
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.filled.ArrowBack
+-import androidx.compose.material.icons.filled.Add
+-import androidx.compose.material.icons.filled.Delete
+-import androidx.compose.material.icons.filled.Edit
+-import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.IconButton
+ import androidx.compose.material3.MaterialTheme
+-import androidx.compose.material3.OutlinedTextField
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
+-import androidx.compose.material3.TextButton
+ import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.getValue
+-import androidx.compose.runtime.mutableStateOf
+-import androidx.compose.runtime.remember
+-import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+@@ -42,7 +31,6 @@ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.dp
+ import com.lyihub.archiveassistant.domain.KnowledgeItem
+ import com.lyihub.archiveassistant.domain.Topic
+-import com.lyihub.archiveassistant.state.TopicNameDialogMode
+ import com.lyihub.archiveassistant.ui.components.PaneContainer
+ import com.lyihub.archiveassistant.ui.components.PaneDivider
+ import com.lyihub.archiveassistant.ui.components.PaneHeader
+@@ -53,22 +41,8 @@ fun ManagePane(
+     itemsByTopic: Map<String, List<KnowledgeItem>>,
+     onBack: () -> Unit,
+     onTopicSelected: (String) -> Unit,
+-    onCreateTopic: () -> Unit,
+-    onRenameTopic: (String) -> Unit,
+-    onDeleteTopic: (String) -> Unit,
+-    onConfirmCreateTopic: (String) -> Unit,
+-    onConfirmRenameTopic: (String) -> Unit,
+-    onConfirmDeleteTopic: () -> Unit,
+-    onCloseTopicNameDialog: () -> Unit,
+-    onCloseDeleteConfirmDialog: () -> Unit,
+-    topicNameDialogMode: TopicNameDialogMode?,
+-    topicNameDialogTopicId: String?,
+-    topicValidationMessage: String?,
+-    deleteConfirmTopicId: String?,
+     modifier: Modifier = Modifier,
+ ) {
+-    val renamingTopic = topics.firstOrNull { it.id == topicNameDialogTopicId }
+-
+     PaneContainer(modifier = modifier.testTag("manage-pane")) {
+         PaneHeader(
+             title = "全部主题",
+@@ -84,18 +58,6 @@ fun ManagePane(
+                     )
+                 }
+             },
+-            actions = {
+-                IconButton(
+-                    onClick = onCreateTopic,
+-                    modifier = Modifier.testTag("create-topic-button"),
+-                ) {
+-                    Icon(
+-                        imageVector = Icons.Default.Add,
+-                        contentDescription = "新建主题",
+-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+-                    )
+-                }
+-            },
+         )
+         PaneDivider()
+         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+@@ -120,36 +82,10 @@ fun ManagePane(
+                     topic = topic,
+                     itemCount = itemsByTopic[topic.id]?.size ?: 0,
+                     onClick = { onTopicSelected(topic.id) },
+-                    onRename = { onRenameTopic(topic.id) },
+-                    onDelete = { onDeleteTopic(topic.id) },
+                 )
+             }
+         }
+     }
+-
+-    if (topicNameDialogMode != null) {
+-        TopicNameDialog(
+-            mode = topicNameDialogMode,
+-            initialName = renamingTopic?.title ?: "",
+-            validationMessage = topicValidationMessage,
+-            onConfirm = { name ->
+-                when (topicNameDialogMode) {
+-                    TopicNameDialogMode.CREATE -> onConfirmCreateTopic(name)
+-                    TopicNameDialogMode.RENAME -> onConfirmRenameTopic(name)
+-                }
+-            },
+-            onDismiss = onCloseTopicNameDialog,
+-        )
+-    }
+-
+-    if (deleteConfirmTopicId != null) {
+-        val deletingTopic = topics.firstOrNull { it.id == deleteConfirmTopicId }
+-        DeleteConfirmDialog(
+-            topicTitle = deletingTopic?.title ?: "",
+-            onConfirm = onConfirmDeleteTopic,
+-            onDismiss = onCloseDeleteConfirmDialog,
+-        )
+-    }
+ }
+ 
+ @Composable
+@@ -157,8 +93,6 @@ private fun ManageTopicRow(
+     topic: Topic,
+     itemCount: Int,
+     onClick: () -> Unit,
+-    onRename: () -> Unit,
+-    onDelete: () -> Unit,
+ ) {
+     Surface(
+         color = MaterialTheme.colorScheme.surface,
+@@ -189,26 +123,6 @@ private fun ManageTopicRow(
+                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                 )
+             }
+-            IconButton(
+-                onClick = onRename,
+-                modifier = Modifier.testTag("rename-topic-button-${topic.id}"),
+-            ) {
+-                Icon(
+-                    imageVector = Icons.Default.Edit,
+-                    contentDescription = "重命名",
+-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+-                )
+-            }
+-            IconButton(
+-                onClick = onDelete,
+-                modifier = Modifier.testTag("delete-topic-button-${topic.id}"),
+-            ) {
+-                Icon(
+-                    imageVector = Icons.Default.Delete,
+-                    contentDescription = "删除",
+-                    tint = MaterialTheme.colorScheme.error,
+-                )
+-            }
+         }
+     }
+ }
+@@ -239,94 +153,3 @@ private fun TopicIcon(
+     }
+ }
+ 
+-@Composable
+-private fun TopicNameDialog(
+-    mode: TopicNameDialogMode,
+-    initialName: String,
+-    validationMessage: String?,
+-    onConfirm: (String) -> Unit,
+-    onDismiss: () -> Unit,
+-) {
+-    var text by remember { mutableStateOf(initialName) }
+-    val title = when (mode) {
+-        TopicNameDialogMode.CREATE -> "建立新主题"
+-        TopicNameDialogMode.RENAME -> "重命名主题"
+-    }
+-
+-    AlertDialog(
+-        onDismissRequest = onDismiss,
+-        title = { Text(title) },
+-        text = {
+-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+-                OutlinedTextField(
+-                    value = text,
+-                    onValueChange = { text = it },
+-                    label = { Text("主题名称") },
+-                    singleLine = true,
+-                    modifier = Modifier.fillMaxWidth(),
+-                )
+-                Text(
+-                    text = "${text.length} / 20",
+-                    style = MaterialTheme.typography.bodySmall,
+-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+-                )
+-                if (validationMessage != null) {
+-                    Text(
+-                        text = validationMessage,
+-                        style = MaterialTheme.typography.bodySmall,
+-                        color = MaterialTheme.colorScheme.error,
+-                    )
+-                }
+-            }
+-        },
+-        confirmButton = {
+-            TextButton(
+-                onClick = { onConfirm(text) },
+-                modifier = Modifier.testTag("topic-name-dialog-confirm"),
+-            ) {
+-                Text("确定")
+-            }
+-        },
+-        dismissButton = {
+-            TextButton(
+-                onClick = onDismiss,
+-                modifier = Modifier.testTag("topic-name-dialog-dismiss"),
+-            ) {
+-                Text("取消")
+-            }
+-        },
+-        modifier = Modifier.testTag("topic-name-dialog"),
+-    )
+-}
+-
+-@Composable
+-private fun DeleteConfirmDialog(
+-    topicTitle: String,
+-    onConfirm: () -> Unit,
+-    onDismiss: () -> Unit,
+-) {
+-    AlertDialog(
+-        onDismissRequest = onDismiss,
+-        title = { Text("确认删除") },
+-        text = {
+-            Text("确定要删除主题 \"$topicTitle\" 吗？该主题下的所有内容也将被删除。")
+-        },
+-        confirmButton = {
+-            TextButton(
+-                onClick = onConfirm,
+-                modifier = Modifier.testTag("delete-confirm-dialog-confirm"),
+-            ) {
+-                Text("删除", color = MaterialTheme.colorScheme.error)
+-            }
+-        },
+-        dismissButton = {
+-            TextButton(
+-                onClick = onDismiss,
+-                modifier = Modifier.testTag("delete-confirm-dialog-dismiss"),
+-            ) {
+-                Text("取消")
+-            }
+-        },
+-        modifier = Modifier.testTag("delete-confirm-dialog"),
+-    )
+-}
+
+## active CRUD success expectation search
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:292:    fun openCreateTopicDialog() {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:300:    fun openRenameTopicDialog(topicId: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:316:    fun confirmCreateTopic(title: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:317:        createTopic(title)
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:323:    fun confirmRenameTopic(title: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:325:        renameTopic(topicId, title)
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:331:    fun openDeleteConfirmDialog(topicId: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:333:            deleteConfirmTopicId = null,
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:339:        state = state.copy(deleteConfirmTopicId = null)
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:421:    fun confirmDeleteTopic() {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:422:        val topicId = state.deleteConfirmTopicId ?: return
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:424:        deleteTopic(topicId)
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:439:    fun openDeleteItemConfirmDialog(itemId: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:447:    fun confirmDeleteItem() {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:801:    fun createTopic(title: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:805:    fun renameTopic(topicId: String, title: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:809:    fun deleteTopic(topicId: String) {
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStore.kt:1112:        const val TOPIC_CRUD_DISABLED_MESSAGE = "六部分类已固定，不能新建、重命名或删除。"
+app/src/main/java/com/lyihub/archiveassistant/state/ArchiveAssistantState.kt:58:    val deleteConfirmTopicId: String? = null,
+app/src/main/java/com/lyihub/archiveassistant/app/ArchiveAssistantApp.kt:169:                onDelete = { effectiveStateStore.openDeleteItemConfirmDialog(item.id) },
+app/src/main/java/com/lyihub/archiveassistant/app/ArchiveAssistantApp.kt:203:                onConfirm = effectiveStateStore::confirmDeleteItem,
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:60:        const val TOPIC_CRUD_DISABLED_MESSAGE = "六部分类已固定，不能新建、重命名或删除。"
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:129:    fun deleteTopic_whenActiveTopic_isDisabledAndPreservesTopicsAndItems() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:136:        store.deleteTopic(SampleKnowledgeData.DefaultTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:751:        store.createTopic("新主题")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:757:        store.renameTopic(SampleKnowledgeData.DefaultTopicId, "重命名主题")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:780:    fun openCreateTopicDialog_doesNotOpenFlowAndShowsDisabledMessage() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:783:        store.openCreateTopicDialog()
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:791:    fun openRenameTopicDialog_doesNotOpenFlowAndShowsDisabledMessage() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:794:        store.openRenameTopicDialog(SampleKnowledgeData.DefaultTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:802:    fun confirmCreateTopic_isDisabledAndDoesNotCreateTopic() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:807:        store.confirmCreateTopic("新建主题")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:816:    fun confirmCreateTopic_whenBlank_isDisabledAndDoesNotValidateTitle() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:820:        store.confirmCreateTopic("   ")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:828:    fun confirmRenameTopic_withoutOpenDialog_isNoOp() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:832:        store.confirmRenameTopic("新名字")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:840:    fun renameTopic_isDisabledAndDoesNotUpdateTitleOrTimestamp() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:844:        store.renameTopic(SampleKnowledgeData.DefaultTopicId, "重命名后")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:852:    fun openRenameTopicDialogThenConfirmRenameTopic_doesNotRename() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:855:        store.openRenameTopicDialog(SampleKnowledgeData.DefaultTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:857:        store.confirmRenameTopic("新名字")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:865:    fun confirmDeleteTopic_isDisabledBecauseDialogCannotOpen() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:869:        store.openDeleteConfirmDialog(SampleKnowledgeData.DefaultTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:871:        store.confirmDeleteTopic()
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:873:        assertNull(store.state.deleteConfirmTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:880:    fun openDeleteConfirmDialog_doesNotOpenFlowAndPreservesTopics() {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:883:        store.openDeleteConfirmDialog(SampleKnowledgeData.DefaultTopicId)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:885:        assertNull(store.state.deleteConfirmTopicId)
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:506:        composeTestRule.onNodeWithText("删除当前预设").performClick()
+app/src/main/java/com/lyihub/archiveassistant/ui/screens/SettingsPane.kt:184:                                    text = { Text("删除当前预设") },
+app/src/main/java/com/lyihub/archiveassistant/ui/screens/DetailPane.kt:854:                        label = "删除",
+app/src/main/java/com/lyihub/archiveassistant/ui/screens/DetailPane.kt:1085:        title = { Text("确认删除") },
+app/src/main/java/com/lyihub/archiveassistant/ui/screens/DetailPane.kt:1086:        text = { Text("确定要删除资料 \"$itemTitle\" 吗？") },
+app/src/main/java/com/lyihub/archiveassistant/ui/screens/DetailPane.kt:1091:                Text("删除", color = MaterialTheme.colorScheme.error)
+
+## legacy topic ID search
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:112:        val classifier = classifierReturning("""{"topic": "topic-ai-architecture", "confidence": 0.9, "reason": "legacy"}""")
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:129:        assertTrue(!prompt.contains("topic-ai-architecture"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1338:        val legacyItem = legacyItem(topicId = "topic-ai-architecture")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1354:        val legacyItem = legacyItem(topicId = "topic-ai-architecture")
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1742:        id = "topic-ai-architecture",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:365:            """{"topicId":"topic-ai-architecture","contentType":"DOCUMENT","title":"Agent 论文","summary":"介绍。","sourceUrl":"","documentFormat":"MARKDOWN"}"""
+app/src/test/java/com/lyihub/archiveassistant/data/AppDataPreferencesTest.kt:19:        val items = listOf(legacyItem("topic-ai-architecture"))
+app/src/test/java/com/lyihub/archiveassistant/data/AppDataPreferencesTest.kt:54:        assertEquals(SixMinistry.TREASURY.id, resolveTopicId("topic-ai-architecture"))
+app/src/test/java/com/lyihub/archiveassistant/data/AppDataPreferencesTest.kt:55:        assertEquals(SixMinistry.TREASURY.id, resolveTopicId("topic-ui-inspiration"))
+app/src/test/java/com/lyihub/archiveassistant/data/AppDataPreferencesTest.kt:56:        assertEquals(SixMinistry.TREASURY.id, resolveTopicId("topic-anthropology-clips"))
+app/src/test/java/com/lyihub/archiveassistant/data/AppDataPreferencesTest.kt:65:        id = "topic-ai-architecture",
+
+## external AI/network test seam search
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:9:class LocalLlmClassifierTest {
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:48:        val classifier = LocalLlmClassifier(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:91:        val classifier = LocalLlmClassifier(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:123:        val classifier = LocalLlmClassifier(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:133:    private suspend fun classifierReturning(output: String): LocalLlmClassifier = LocalLlmClassifier(initializedEngine(output))
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmClassifierTest.kt:135:    private suspend fun initializedEngine(output: String): FakeLocalLlmEngine = FakeLocalLlmEngine(returnText = output).also { engine ->
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:115:    fun settingsPane_apiKeyInput_isMasked() {
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:251:            apiKey = "sk-work-secret",
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:273:        assertEquals("sk-work-secret", currentSettings.apiKey)
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:472:        assertEquals("sk-anthropic", preset?.apiKey)
+app/src/androidTest/java/com/lyihub/archiveassistant/ui/screens/SettingsPaneTest.kt:484:                apiKey = "key",
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:9:class LocalLlmSmartSummarizerTest {
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:81:        val summarizer = LocalLlmSmartSummarizer(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:109:        val summarizer = LocalLlmSmartSummarizer(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:142:        val summarizer = LocalLlmSmartSummarizer(engine)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:203:        val result = LocalLlmSmartSummarizer(engine).summarize(SmartSummarizeRequest("content"), topics)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:276:        val result = LocalLlmSmartSummarizer(engine).summarize(SmartSummarizeRequest("   "), topics)
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:282:    private suspend fun summarizerReturning(output: String): LocalLlmSmartSummarizer =
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:283:        LocalLlmSmartSummarizer(initializedEngine(output))
+app/src/test/java/com/lyihub/archiveassistant/domain/LocalLlmSmartSummarizerTest.kt:285:    private suspend fun initializedEngine(output: String): FakeLocalLlmEngine = FakeLocalLlmEngine(returnText = output).also { engine ->
+app/src/test/java/com/lyihub/archiveassistant/domain/FakeLocalLlmEngine.kt:7:class FakeLocalLlmEngine(
+app/src/test/java/com/lyihub/archiveassistant/domain/FakeLocalLlmEngine.kt:19:) : LocalLlmEngine {
+app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt:7:class MockKnowledgeClassifierTest {
+app/src/test/java/com/lyihub/archiveassistant/domain/MockKnowledgeClassifierTest.kt:8:    private val classifier = MockKnowledgeClassifier()
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:22:import com.lyihub.archiveassistant.domain.FakeLocalLlmEngine
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:25:import com.lyihub.archiveassistant.domain.LocalLlmEngine
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:26:import com.lyihub.archiveassistant.domain.LocalLlmSmartSummarizer
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:228:        val summarizer = FakeSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:247:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:270:        val fetcher = FakeWebPageContentFetcher(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:274:        val summarizer = FakeSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:286:        assertEquals(1, fetcher.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:301:        val fetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Success(fetchedContent()))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:302:        val summarizer = FakeSmartSummarizer(successResult(title = "Embedded URL summary"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:310:        assertEquals(1, fetcher.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:322:        val fetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Failure("网页抓取超时，请稍后重试"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:323:        val summarizer = FakeSmartSummarizer(successResult(title = "Should not summarize"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:331:        assertEquals(1, fetcher.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:332:        assertEquals(0, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:339:        val fetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Failure("网页内容为空"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:340:        val inferenceConnection = FakeLocalInferenceGateway(engine = null)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:353:        assertEquals(1, fetcher.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:362:        val fetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Failure("should not fetch"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:363:        val summarizer = FakeSmartSummarizer(successResult(title = "Plain summary"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:370:        assertEquals(0, fetcher.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:371:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:378:        val summarizer = FakeSmartSummarizer(successResult())
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:387:        assertEquals(0, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:394:        val summarizer = FakeSmartSummarizer(gate = gate)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:404:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:409:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:416:        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("AI失败"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:423:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:431:        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("远程 AI 请求失败"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:440:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:448:        val summarizer = FakeSmartSummarizer(successResult(topicId = "missing-topic"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:457:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:467:        val summarizer = FakeSmartSummarizer(successResult(title = "Should not commit"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:477:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1025:        val store = smartStore(FakeSmartSummarizer(successResult(title = "Clipboard summary")))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1041:        val summarizer = FakeSmartSummarizer(successResult(title = "Clipboard saved"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1050:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1061:        val summarizer = FakeSmartSummarizer(SmartSummarizeResult.Failure("剪切板总结失败"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1068:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1133:        val summarizer = FakeSmartSummarizer(successResult(title = "DOCX summary"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1147:        waitUntil { summarizer.callCount == 1 && !store.state.isSmartSummarizing }
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1193:        val downloadManager = FakeModelDownloadManager()
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1194:        val engine = FakeLocalLlmEngine(returnText = localSmartJson()).also {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1197:        val inferenceConnection = FakeLocalInferenceGateway(engine)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1229:        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1240:        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1259:            inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine()),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1272:        val downloadManager = FakeModelDownloadManager()
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1276:        downloadManager.emit(LocalModelState(status = LocalModelStatus.ERROR, errorMessage = "network failed"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1289:        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1305:        val inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine())
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1339:        val dataStore = FakePreferencesDataStore().apply {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1355:        val dataStore = FakePreferencesDataStore().apply {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1384:            inferenceConnection = FakeLocalInferenceGateway(engine = null),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1401:        val inferenceConnection = FakeLocalInferenceGateway(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1425:        val summarizer = FakeSmartSummarizer(successResult(title = "Remote summary"))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1439:        assertEquals(1, summarizer.callCount)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1446:        val engine = FakeLocalLlmEngine().also {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1450:        val inferenceConnection = FakeLocalInferenceGateway(engine)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1465:        val store = localStore(inferenceConnection = FakeLocalInferenceGateway(FakeLocalLlmEngine()))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1475:        val engine = FakeLocalLlmEngine().also {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1480:        val inferenceConnection = FakeLocalInferenceGateway(engine)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1493:        downloadManager: FakeModelDownloadManager = FakeModelDownloadManager(),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1494:        inferenceConnection: FakeLocalInferenceGateway = FakeLocalInferenceGateway(FakeLocalLlmEngine()),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1497:        webPageContentFetcher: WebPageContentFetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Failure("unexpected fetch")),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1508:        webPageContentFetcher: WebPageContentFetcher = FakeWebPageContentFetcher(WebPageContentFetchResult.Failure("unexpected fetch")),
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1514:    private fun smartStore(result: SmartSummarizeResult) = smartStore(FakeSmartSummarizer(result))
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1558:    private class FakeModelDownloadManager : ModelDownloadManager {
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1590:    private class FakeLocalInferenceGateway(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1591:        private val engine: LocalLlmEngine?,
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1612:        override fun getEngine(): LocalLlmEngine? = engine
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1621:            return LocalLlmSmartSummarizer(currentEngine).summarize(request, topics, existingItems)
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1638:    private class FakeSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1644:        var callCount = 0
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1652:            callCount++
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1658:    private class FakeWebPageContentFetcher(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1664:        var callCount = 0
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1668:            callCount++
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1675:    private class FakeDocumentContentExtractor(
+app/src/test/java/com/lyihub/archiveassistant/state/ArchiveAssistantStateStoreTest.kt:1702:    private class FakePreferencesDataStore : DataStore<Preferences> {
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:19:        val transport = FakeTransport()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:21:        val result = testAiEndpointLatency(settings, apiKey = "sk-test", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:27:        assertEquals(0, transport.calls.size)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:37:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:39:        val result = testAiEndpointLatency(settings, apiKey = "sk-test", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:42:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:57:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:59:        val result = testAiEndpointLatency(settings, apiKey = "sk-test", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:62:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:74:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:76:        val result = testAiEndpointLatency(settings, apiKey = "sk-ant", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:79:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:92:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:94:        val result = testAiEndpointLatency(settings, apiKey = "AIza-test", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:97:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:112:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:114:        testAiEndpointLatency(settings, apiKey = "key", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:116:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:131:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:133:        val result = testAiEndpointLatency(settings, apiKey = "", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:136:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:148:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:150:        val result = testAiEndpointLatency(settings, apiKey = "sk", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:163:        val transport = FakeTransport(responseCode = 401)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:165:        val result = testAiEndpointLatency(settings, apiKey = "sk", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:177:        val transport = FakeTransport(error = IOException("connection refused"))
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:179:        val result = testAiEndpointLatency(settings, apiKey = "sk", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:194:        val transport = FakeTransport(responseCode = 200)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:196:        testAiEndpointLatency(settings, apiKey = "", transport = transport)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:198:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:202:    private class FakeTransport(
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:206:        val calls = mutableListOf<AiLatencyRequest>()
+app/src/test/java/com/lyihub/archiveassistant/data/AiEndpointLatencyTesterTest.kt:209:            calls.add(request)
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:4:import com.lyihub.archiveassistant.domain.FakeLocalLlmEngine
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:16:        val engine = FakeLocalLlmEngine().apply {
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:28:        val engine = FakeLocalLlmEngine().apply {
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:39:        val engine = FakeLocalLlmEngine(delayMillis = 60_001L)
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:52:        val engine = FakeLocalLlmEngine(
+app/src/test/java/com/lyihub/archiveassistant/data/LiteRtLmEngineAdapterTest.kt:74:        val engine = FakeLocalLlmEngine()
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:15:            FakeWebPageTransport(
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:103:        val result = fetchResult(FakeWebPageTransport(code = 404, body = "not found"))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:110:        val timeout = fetchResult(FakeWebPageTransport(error = SocketTimeoutException("raw timeout")))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:111:        val io = fetchResult(FakeWebPageTransport(error = IOException("raw io")))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:119:        val blank = fetchResult(FakeWebPageTransport(contentType = " ", body = "<html><body>Body</body></html>"))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:120:        val missing = fetchResult(FakeWebPageTransport(contentType = null, body = "<html><body>Body</body></html>"))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:121:        val nonHtml = fetchResult(FakeWebPageTransport(contentType = "application/json", body = "{}"))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:131:        val result = fetchResult(FakeWebPageTransport(body = "   "))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:137:        val result = fetchResult(FakeWebPageTransport(body = html))
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:142:    private suspend fun fetchResult(transport: FakeWebPageTransport): WebPageContentFetchResult =
+app/src/test/java/com/lyihub/archiveassistant/data/WebPageContentFetcherTest.kt:145:    private class FakeWebPageTransport(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:19:class RemoteApiSmartSummarizerTest {
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:22:        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:23:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:28:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:40:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:48:        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:49:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:54:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:79:        val body = transport.calls.single().body.orEmpty()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:94:        val transport = FakeRemoteTransport("""{"output_text":${jsonString(summaryJson())}}""")
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:95:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:103:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:111:        val transport = FakeRemoteTransport("""{"content":[{"text":${jsonString(summaryJson())}}]}""")
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:112:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:113:            AiEngineSettings(engineType = AiEngineType.ANTHROPIC, baseUrl = "https://api.anthropic.com/v1", apiKey = "sk-ant"),
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:120:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:129:        val transport = FakeRemoteTransport("""{"candidates":[{"content":{"parts":[{"text":${jsonString(summaryJson())}}]}}]}""")
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:130:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:135:                apiKey = "AIza-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:145:            transport.calls.single().endpoint,
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:151:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:153:            FakeRemoteTransport("{}", code = 401),
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:163:        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:164:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:169:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:191:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:202:        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:203:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:208:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:229:        val request = transport.calls.single()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:243:        val transport = FakeRemoteTransport(openAiCompatibleBody(wrappedOutput))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:244:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:261:        val transport = FakeRemoteTransport(openAiCompatibleBody(summaryJson()))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:262:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:267:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:284:        val body = transport.calls.single().body.orEmpty()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:294:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:295:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:308:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:309:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:322:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:323:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:336:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:337:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:350:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:351:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:366:        val transport = FakeRemoteTransport(openAiCompatibleBody(json))
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:367:        val summarizer = RemoteApiSmartSummarizer(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:378:    private class FakeRemoteTransport(
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:382:        val calls = mutableListOf<RemoteAiRequest>()
+app/src/test/java/com/lyihub/archiveassistant/data/RemoteApiSmartSummarizerTest.kt:385:            calls.add(request)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:47:        val downloader = FakeModelDownloader(modelDir)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:61:    fun startDownload_networkFailureAtHalf_retainsPartialAndReportsError() = runTest {
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:62:        val downloader = FakeModelDownloader(modelDir, failureMode = FailureMode.NETWORK_AT_HALF)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:74:        val downloader = FakeModelDownloader(modelDir, failureMode = FailureMode.WIFI_DISCONNECT_AT_HALF)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:87:        val downloader = FakeModelDownloader(modelDir)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:101:        val downloader = FakeModelDownloader(modelDir)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:113:        val downloader = FakeModelDownloader(modelDir, hasStorage = false)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:125:        val downloader = FakeModelDownloader(modelDir, hasWifi = false)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:137:        val downloader = FakeModelDownloader(modelDir, failureMode = FailureMode.CANCEL_AT_HALF)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:149:        val downloader = FakeModelDownloader(modelDir)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:163:        val downloader = FakeModelDownloader(modelDir, suspendAtHalf = true)
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:178:    private class FakeModelDownloader(
+app/src/test/java/com/lyihub/archiveassistant/data/ModelDownloadManagerTest.kt:202:                fail("Wi-Fi or unmetered network is required")
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:31:                apiKey = "sk-test",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:39:                apiKey = "",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:59:                "apiKey": "key",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:76:            apiKeyAlias = "work",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:92:                apiKey = "sk-secret",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:106:            apiKey = "api-key",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:117:                apiKeyAlias = "Gemini",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:118:                apiKey = "api-key",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:127:        val repository = AiEnginePresetRepository(FakePreferencesDataStore())
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:134:                apiKey = "sk-abc",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEnginePresetPreferencesTest.kt:144:    private class FakePreferencesDataStore : androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> {
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:31:            apiKeyAlias = "work-profile",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:57:        val repository = AiEngineSettingsRepository(FakePreferencesDataStore())
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:62:            apiKeyAlias = "team-alias",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:77:            apiKeyAlias = "test",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:97:            AiEngineSettingsPreferences.LocalEndpointKey to "http://old-server:11434",
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:103:        assertEquals("http://old-server:11434", decoded.localEndpoint)
+app/src/test/java/com/lyihub/archiveassistant/data/AiEngineSettingsPreferencesTest.kt:108:    private class FakePreferencesDataStore : DataStore<Preferences> {
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:3:import com.lyihub.archiveassistant.domain.FakeLocalLlmEngine
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:5:import com.lyihub.archiveassistant.domain.LocalLlmEngine
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:27:        val fakeEngine = FakeLocalLlmEngine(actualBackend = InferenceBackend.GPU)
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:42:        val fakeEngine = FakeLocalLlmEngine().apply {
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:60:        val fakeEngine = TrackingLocalLlmEngine(FakeLocalLlmEngine())
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:78:        val fakeEngine = FakeLocalLlmEngine(delayMillis = 61_000L)
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:98:        val fakeEngine = FakeLocalLlmEngine(returnText = "generated")
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:113:        val fakeEngine = FakeLocalLlmEngine()
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:128:        engine: LocalLlmEngine,
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:139:    private class TrackingLocalLlmEngine(
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:140:        private val delegate: FakeLocalLlmEngine,
+app/src/test/java/com/lyihub/archiveassistant/service/LocalInferenceServiceLogicTest.kt:141:    ) : LocalLlmEngine {

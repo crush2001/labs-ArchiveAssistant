@@ -1,0 +1,317 @@
+{
+  "schema_version": 2,
+  "active_work_id": "backend-first-six-ministries-data-model-4bb06336",
+  "works": {
+    "backend-first-six-ministries-data-model-4bb06336": {
+      "work_id": "backend-first-six-ministries-data-model-4bb06336",
+      "active_plan": "/Users/farest/AndroidStudioProjects/ArchiveAssistant/.omo/plans/backend-first-six-ministries-data-model.md",
+      "plan_name": "backend-first-six-ministries-data-model",
+      "status": "completed",
+      "started_at": "2026-06-26T06:42:20.069Z",
+      "updated_at": "2026-06-26T08:38:45.090Z",
+      "session_ids": [
+        "opencode:ses_0fdf8f82effeRyYq8EzhTzEPMK",
+        "opencode:ses_0fd53d515ffecmgCPXOs31aEiE",
+        "opencode:ses_0fd53d4f6ffe7dIlyj413bxu0f",
+        "opencode:ses_0fd53d4bbffeqON8wFwEbjut61"
+      ],
+      "session_origins": {
+        "opencode:ses_0fdf8f82effeRyYq8EzhTzEPMK": "direct",
+        "opencode:ses_0fd53d515ffecmgCPXOs31aEiE": "appended",
+        "opencode:ses_0fd53d4f6ffe7dIlyj413bxu0f": "appended",
+        "opencode:ses_0fd53d4bbffeqON8wFwEbjut61": "appended"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Add canonical Six Ministries model while retaining Topic compatibility",
+          "session_id": "opencode:ses_0fd3393faffe16m1Xm2b4CBm0e",
+          "agent": "Sisyphus-Junior",
+          "category": "",
+          "started_at": "2026-06-26T07:24:04.796Z",
+          "status": "running",
+          "updated_at": "2026-06-26T07:32:34.825Z"
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "Disable Topic CRUD backend paths and remove cascade deletion risk",
+          "session_id": "opencode:ses_0fd3393d6ffexc714Pgb7UDf0K",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-26T07:28:01.126Z",
+          "started_at": "2026-06-26T07:28:01.126Z",
+          "status": "running"
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "Preserve legacy persistence readability and add safe topicId resolver",
+          "session_id": "opencode:ses_0fd232c12ffegjaNGxSzwudfbZ",
+          "agent": "Sisyphus-Junior",
+          "category": "",
+          "started_at": "2026-06-26T07:48:51.618Z",
+          "status": "running",
+          "updated_at": "2026-06-26T07:53:18.152Z"
+        },
+        "todo:6": {
+          "task_key": "todo:6",
+          "task_label": "6",
+          "task_title": "Apply minimal frontend callback/button handling only for disabled CRUD",
+          "session_id": "opencode:ses_0fd0f59f8ffeBp9UWfZcVi2UEo",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-26T08:03:03.990Z",
+          "started_at": "2026-06-26T08:03:03.990Z",
+          "status": "running"
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "Update state grouping/filtering to treat selectedTopicId as ministry-compatible",
+          "session_id": "opencode:ses_0fd0f5b46ffeOe2EbTV9iZSCgj",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-26T08:04:55.539Z",
+          "started_at": "2026-06-26T08:04:55.539Z",
+          "status": "running"
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "Constrain classifiers and summarizers to ministry IDs",
+          "session_id": "opencode:ses_0fd0f5b92fferz2mCjB8axO2MB",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-26T08:08:00.926Z",
+          "started_at": "2026-06-26T08:08:00.926Z",
+          "status": "running"
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "Rewrite tests for fixed ministries and disabled Topic CRUD",
+          "session_id": "opencode:ses_0fd033505ffeY1sJfdDm3d6U5i",
+          "agent": "Sisyphus-Junior",
+          "category": "",
+          "started_at": "2026-06-26T08:16:52.395Z",
+          "status": "running",
+          "updated_at": "2026-06-26T08:22:09.427Z"
+        },
+        "todo:8": {
+          "task_key": "todo:8",
+          "task_label": "8",
+          "task_title": "Run full backend-first regression and evidence audit",
+          "session_id": "opencode:ses_0fcf7580cffeNgcdPxEOx5Qc4l",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-26T08:28:36.670Z",
+          "started_at": "2026-06-26T08:28:36.670Z",
+          "status": "running"
+        },
+        "final-wave:f4": {
+          "task_key": "final-wave:f4",
+          "task_label": "F4",
+          "task_title": "Scope Fidelity Check — oracle",
+          "session_id": "opencode:ses_0fcf0002fffe4oMC5tAb8cmZR9",
+          "agent": "oracle",
+          "category": "",
+          "updated_at": "2026-06-26T08:34:45.142Z",
+          "started_at": "2026-06-26T08:34:45.142Z",
+          "status": "running"
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan Compliance Audit — oracle",
+          "session_id": "opencode:ses_0fcf00280ffemAH0pS5SnUf6zh",
+          "agent": "oracle",
+          "category": "",
+          "updated_at": "2026-06-26T08:35:57.153Z",
+          "started_at": "2026-06-26T08:35:57.153Z",
+          "status": "running"
+        },
+        "final-wave:f3": {
+          "task_key": "final-wave:f3",
+          "task_label": "F3",
+          "task_title": "Regression QA — unspecified-high",
+          "session_id": "opencode:ses_0fcf0011cffeZAT54whYYAxxG1",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-26T08:36:31.656Z",
+          "started_at": "2026-06-26T08:36:31.656Z",
+          "status": "running"
+        },
+        "final-wave:f2": {
+          "task_key": "final-wave:f2",
+          "task_label": "F2",
+          "task_title": "Data Safety Review — deep",
+          "session_id": "opencode:ses_0fcf00213ffeRKlOrYY3Ua56h0",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-26T08:36:32.790Z",
+          "started_at": "2026-06-26T08:36:32.790Z",
+          "status": "running"
+        }
+      },
+      "ended_at": "2026-06-26T08:38:45.090Z",
+      "elapsed_ms": 6985021
+    }
+  },
+  "active_plan": "/Users/farest/AndroidStudioProjects/ArchiveAssistant/.omo/plans/backend-first-six-ministries-data-model.md",
+  "started_at": "2026-06-26T06:42:20.069Z",
+  "status": "completed",
+  "updated_at": "2026-06-26T08:38:45.090Z",
+  "session_ids": [
+    "opencode:ses_0fdf8f82effeRyYq8EzhTzEPMK",
+    "opencode:ses_0fd53d515ffecmgCPXOs31aEiE",
+    "opencode:ses_0fd53d4f6ffe7dIlyj413bxu0f",
+    "opencode:ses_0fd53d4bbffeqON8wFwEbjut61"
+  ],
+  "session_origins": {
+    "opencode:ses_0fdf8f82effeRyYq8EzhTzEPMK": "direct",
+    "opencode:ses_0fd53d515ffecmgCPXOs31aEiE": "appended",
+    "opencode:ses_0fd53d4f6ffe7dIlyj413bxu0f": "appended",
+    "opencode:ses_0fd53d4bbffeqON8wFwEbjut61": "appended"
+  },
+  "plan_name": "backend-first-six-ministries-data-model",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Add canonical Six Ministries model while retaining Topic compatibility",
+      "session_id": "opencode:ses_0fd3393faffe16m1Xm2b4CBm0e",
+      "agent": "Sisyphus-Junior",
+      "category": "",
+      "started_at": "2026-06-26T07:24:04.796Z",
+      "status": "running",
+      "updated_at": "2026-06-26T07:32:34.825Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Disable Topic CRUD backend paths and remove cascade deletion risk",
+      "session_id": "opencode:ses_0fd3393d6ffexc714Pgb7UDf0K",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-26T07:28:01.126Z",
+      "started_at": "2026-06-26T07:28:01.126Z",
+      "status": "running"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Preserve legacy persistence readability and add safe topicId resolver",
+      "session_id": "opencode:ses_0fd232c12ffegjaNGxSzwudfbZ",
+      "agent": "Sisyphus-Junior",
+      "category": "",
+      "started_at": "2026-06-26T07:48:51.618Z",
+      "status": "running",
+      "updated_at": "2026-06-26T07:53:18.152Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Apply minimal frontend callback/button handling only for disabled CRUD",
+      "session_id": "opencode:ses_0fd0f59f8ffeBp9UWfZcVi2UEo",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-26T08:03:03.990Z",
+      "started_at": "2026-06-26T08:03:03.990Z",
+      "status": "running"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Update state grouping/filtering to treat selectedTopicId as ministry-compatible",
+      "session_id": "opencode:ses_0fd0f5b46ffeOe2EbTV9iZSCgj",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-26T08:04:55.539Z",
+      "started_at": "2026-06-26T08:04:55.539Z",
+      "status": "running"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Constrain classifiers and summarizers to ministry IDs",
+      "session_id": "opencode:ses_0fd0f5b92fferz2mCjB8axO2MB",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-26T08:08:00.926Z",
+      "started_at": "2026-06-26T08:08:00.926Z",
+      "status": "running"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Rewrite tests for fixed ministries and disabled Topic CRUD",
+      "session_id": "opencode:ses_0fd033505ffeY1sJfdDm3d6U5i",
+      "agent": "Sisyphus-Junior",
+      "category": "",
+      "started_at": "2026-06-26T08:16:52.395Z",
+      "status": "running",
+      "updated_at": "2026-06-26T08:22:09.427Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Run full backend-first regression and evidence audit",
+      "session_id": "opencode:ses_0fcf7580cffeNgcdPxEOx5Qc4l",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-26T08:28:36.670Z",
+      "started_at": "2026-06-26T08:28:36.670Z",
+      "status": "running"
+    },
+    "final-wave:f4": {
+      "task_key": "final-wave:f4",
+      "task_label": "F4",
+      "task_title": "Scope Fidelity Check — oracle",
+      "session_id": "opencode:ses_0fcf0002fffe4oMC5tAb8cmZR9",
+      "agent": "oracle",
+      "category": "",
+      "updated_at": "2026-06-26T08:34:45.142Z",
+      "started_at": "2026-06-26T08:34:45.142Z",
+      "status": "running"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "opencode:ses_0fcf00280ffemAH0pS5SnUf6zh",
+      "agent": "oracle",
+      "category": "",
+      "updated_at": "2026-06-26T08:35:57.153Z",
+      "started_at": "2026-06-26T08:35:57.153Z",
+      "status": "running"
+    },
+    "final-wave:f3": {
+      "task_key": "final-wave:f3",
+      "task_label": "F3",
+      "task_title": "Regression QA — unspecified-high",
+      "session_id": "opencode:ses_0fcf0011cffeZAT54whYYAxxG1",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-26T08:36:31.656Z",
+      "started_at": "2026-06-26T08:36:31.656Z",
+      "status": "running"
+    },
+    "final-wave:f2": {
+      "task_key": "final-wave:f2",
+      "task_label": "F2",
+      "task_title": "Data Safety Review — deep",
+      "session_id": "opencode:ses_0fcf00213ffeRKlOrYY3Ua56h0",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-26T08:36:32.790Z",
+      "started_at": "2026-06-26T08:36:32.790Z",
+      "status": "running"
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-06-26T08:38:45.090Z",
+  "elapsed_ms": 6985021
+}
