@@ -935,6 +935,8 @@ class ArchiveAssistantStateStore(
     }
 
     fun dismissClipboardDialog() {
+        if (state.isSmartSummarizing) return
+
         releaseDragPermission?.invoke()
         releaseDragPermission = null
         val ignoredSnapshot = currentClipboardSnapshot()
@@ -966,12 +968,16 @@ class ArchiveAssistantStateStore(
     }
 
     fun acceptClipboardAndSummarize() {
+        if (state.isSmartSummarizing) return
+
         val content = state.clipboardContent ?: state.clipboardSourceFileName ?: state.clipboardSourceUri ?: return
         state = state.copy(parserInput = content)
         summarizeParserInput(content, closeClipboardOnSuccess = true)
     }
 
     fun acceptClipboardAndManualCreate() {
+        if (state.isSmartSummarizing) return
+
         val targetTopicId = state.selectedTopicId
             ?.let(::resolveTopicId)
             ?.takeIf { selectedTopicId -> state.topics.any { it.id == selectedTopicId } }

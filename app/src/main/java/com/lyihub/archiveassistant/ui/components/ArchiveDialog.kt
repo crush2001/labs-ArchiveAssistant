@@ -91,6 +91,33 @@ fun ArchiveDialogAction(
   primary: Boolean = false,
   testTag: String? = null,
 ) {
+  ArchiveDialogAction(
+    onClick = onClick,
+    modifier = modifier,
+    enabled = enabled,
+    destructive = destructive,
+    primary = primary,
+    testTag = testTag,
+  ) { contentColor ->
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelLarge,
+      color = if (enabled) contentColor else contentColor.copy(alpha = 0.42f),
+      maxLines = 1,
+    )
+  }
+}
+
+@Composable
+fun ArchiveDialogAction(
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  enabled: Boolean = true,
+  destructive: Boolean = false,
+  primary: Boolean = false,
+  testTag: String? = null,
+  content: @Composable RowScope.(Color) -> Unit,
+) {
   val shape = RoundedCornerShape(4.dp)
   val contentColor =
     when {
@@ -114,12 +141,12 @@ fun ArchiveDialogAction(
         .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
     contentAlignment = Alignment.Center,
   ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.labelLarge,
-      color = if (enabled) contentColor else contentColor.copy(alpha = 0.42f),
+    Row(
       modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-      maxLines = 1,
-    )
+      horizontalArrangement = Arrangement.spacedBy(6.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      content(if (enabled) contentColor else contentColor.copy(alpha = 0.42f))
+    }
   }
 }

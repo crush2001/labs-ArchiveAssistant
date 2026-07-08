@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -1096,11 +1097,24 @@ fun ClipboardDialog(
         onClick = onManualCreate,
       )
       ArchiveDialogAction(
-        label = if (isSmartSummarizing) "归纳中…" else "智能归纳",
         onClick = onSummarize,
         enabled = !isSmartSummarizing,
         primary = true,
-      )
+      ) { contentColor ->
+        if (isSmartSummarizing) {
+          CircularProgressIndicator(
+            modifier = Modifier.size(14.dp).testTag("clipboard-smart-summarize-loading"),
+            strokeWidth = 1.8.dp,
+            color = contentColor,
+          )
+        }
+        Text(
+          text = if (isSmartSummarizing) "归纳中…" else "智能归纳",
+          style = MaterialTheme.typography.labelLarge,
+          color = contentColor,
+          maxLines = 1,
+        )
+      }
     },
   ) {
     Column(

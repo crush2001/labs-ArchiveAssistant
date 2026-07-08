@@ -245,6 +245,7 @@ fun ArchiveAssistantApp(
         sourceContentType = state.clipboardSourceContentType,
         sourceDocumentFormat = state.clipboardSourceDocumentFormat,
         sourceFileName = state.clipboardSourceFileName,
+        isSmartSummarizing = state.isSmartSummarizing,
         smartSummarizationMessage = state.smartSummarizationMessage,
         onSummarize = effectiveStateStore::acceptClipboardAndSummarize,
         onManualCreate = effectiveStateStore::acceptClipboardAndManualCreate,

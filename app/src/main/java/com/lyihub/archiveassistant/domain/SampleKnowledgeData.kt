@@ -105,6 +105,17 @@ object SampleKnowledgeData {
             createdAtEpochMillis = 1_720_691_200_000,
         ),
         KnowledgeItem(
+            id = "item-rites-llm-from-zero-bilibili",
+            topicId = SixMinistry.RITES.id,
+            contentType = ContentType.WEB_ARTICLE,
+            title = "从零开始学习大语言模型（一）",
+            summary = "林亦 LYi 的 B 站入门视频，从零梳理大语言模型的基础概念与学习路径。",
+            fullText = "来源：林亦LYi\n标签：大语言模型·入门学习·视频课程\n\n整理正文\n从零开始学习大语言模型（一）以视频课程形式介绍 LLM 的基础概念、技术脉络和学习入口，适合作为大模型架构研究主题下的入门材料。",
+            sourceUrl = "https://www.bilibili.com/video/BV1v4421w7pU/?share_source=copy_web&vd_source=7b49819bbd56af66849860941de5fbee",
+            imageResName = "article_ai_014_llm_from_zero_bilibili",
+            createdAtEpochMillis = 1_720_734_400_000,
+        ),
+        KnowledgeItem(
             id = "item-rites-pumpkin-book",
             topicId = SixMinistry.RITES.id,
             contentType = ContentType.DOCUMENT,

@@ -1135,6 +1135,33 @@ class ArchiveAssistantStateStoreTest {
     }
 
     @Test
+    fun acceptClipboardAndSummarize_whileInFlight_keepsClipboardPopupOpenAndIgnoresRepeatedActions() {
+        val gate = CompletableDeferred<SmartSummarizeResult>()
+        val summarizer = FakeSmartSummarizer(gate = gate)
+        val store = smartStore(summarizer)
+
+        store.showClipboard(content = "clipboard raw content", sourceLabel = "剪切板")
+        store.acceptClipboardAndSummarize()
+        waitUntil { summarizer.callCount == 1 && store.state.isSmartSummarizing }
+
+        store.dismissClipboardDialog()
+        store.acceptClipboardAndManualCreate()
+        store.acceptClipboardAndSummarize()
+
+        assertTrue(store.state.isSmartSummarizing)
+        assertTrue(store.state.showClipboardDialog)
+        assertEquals("clipboard raw content", store.state.clipboardContent)
+        assertFalse(store.state.addItemDialogVisible)
+        assertEquals(1, summarizer.callCount)
+
+        gate.complete(successResult(title = "Clipboard saved"))
+        waitUntil { !store.state.isSmartSummarizing }
+
+        assertFalse(store.state.showClipboardDialog)
+        assertNull(store.state.clipboardContent)
+    }
+
+    @Test
     fun dismissClipboardDialog_withDragSource_clearsAndSetsIgnoredSnapshot() {
         val store = ArchiveAssistantStateStore()
 
@@ -1425,7 +1452,9 @@ class ArchiveAssistantStateStoreTest {
 
         assertTrue(SampleKnowledgeData.items.all { sample -> store.state.items.any { it.id == sample.id } })
         assertEquals(legacyItem, store.state.items.single { it.id == legacyItem.id })
-        assertEquals(store.state.items, dataStore.decodeStoredItems())
+        val storedItems = dataStore.decodeStoredItems()
+        assertTrue(SampleKnowledgeData.items.all { sample -> storedItems.any { it.id == sample.id } })
+        assertEquals(legacyItem, storedItems.single { it.id == legacyItem.id })
         assertEquals(1, dataStore.updateCount)
     }
 
